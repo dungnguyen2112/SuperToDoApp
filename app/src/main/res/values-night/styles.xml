@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Dark theme specific layouts -->
+    <style name="DarkCardStyle" parent="CardView">
+        <item name="cardBackgroundColor">@color/dark_card_background</item>
+        <item name="cardCornerRadius">16dp</item>
+        <item name="cardElevation">8dp</item>
+        <item name="cardUseCompatPadding">true</item>
+    </style>
+
+    <style name="DarkPrimaryText">
+        <item name="android:textColor">@color/dark_text_primary</item>
+        <item name="android:textSize">16sp</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+    </style>
+
+    <style name="DarkSecondaryText">
+        <item name="android:textColor">@color/dark_text_secondary</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:fontFamily">sans-serif</item>
+    </style>
+</resources>
+

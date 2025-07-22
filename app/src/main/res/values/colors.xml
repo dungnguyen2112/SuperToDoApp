@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Light Theme Colors (Material 3) -->
+    <color name="light_primary">#FF2196F3</color>
+    <color name="light_primary_variant">#FF1976D2</color>
+    <color name="light_secondary">#FF00BCD4</color>
+    <color name="light_on_primary">#FFFFFFFF</color>
+    <color name="light_on_secondary">#FFFFFFFF</color>
+    <color name="light_on_background">#FF212121</color>
+    <color name="light_on_surface">#FF212121</color>
+    <color name="light_surface">#FFFFFFFF</color>
+    <color name="light_background">#FFFAFAFA</color>
+    <color name="light_error">#FFF44336</color>
+
+    <!-- Light Theme Text Colors -->
+    <color name="light_text_primary">#FF212121</color>
+    <color name="light_text_secondary">#FF757575</color>
+    <color name="light_text_hint">#FFBDBDBD</color>
+
+    <!-- Dark Theme Base Colors (will be overridden in values-night) -->
+    <color name="dark_background">#FFFAFAFA</color>
+    <color name="dark_surface">#FFFFFFFF</color>
+    <color name="dark_surface_variant">#FFF5F5F5</color>
+    <color name="dark_primary">#FF2196F3</color>
+    <color name="dark_primary_variant">#FF1976D2</color>
+    <color name="dark_secondary">#FF00BCD4</color>
+    <color name="dark_accent">#FFFF5722</color>
+    <color name="dark_on_background">#FF212121</color>
+    <color name="dark_on_surface">#FF212121</color>
+    <color name="dark_on_primary">#FFFFFFFF</color>
+    <color name="dark_text_primary">#FF212121</color>
+    <color name="dark_text_secondary">#FF757575</color>
+    <color name="dark_text_hint">#FFBDBDBD</color>
+    <color name="dark_card_background">#FFFFFFFF</color>
+    <color name="dark_card_elevated">#FFFFFFFF</color>
+    <color name="dark_divider">#FFE0E0E0</color>
+    <color name="dark_error">#FFF44336</color>
+    <color name="dark_gradient_start">#FF2196F3</color>
+    <color name="dark_gradient_end">#FF00BCD4</color>
+
+    <!-- Modern Color Palette -->
+    <color name="primary_blue">#FF2196F3</color>
+    <color name="primary_blue_dark">#FF1976D2</color>
+    <color name="primary_blue_light">#FF64B5F6</color>
+
+    <color name="accent_teal">#FF00BCD4</color>
+    <color name="accent_teal_dark">#FF0097A7</color>
+    <color name="accent_teal_light">#FF4DD0E1</color>
+
+    <!-- Gradient Colors -->
+    <color name="gradient_start">#FF2196F3</color>
+    <color name="gradient_end">#FF00BCD4</color>
+
+    <!-- Status Colors -->
+    <color name="success_green">#FF4CAF50</color>
+    <color name="warning_orange">#FFFF9800</color>
+    <color name="error_red">#FFF44336</color>
+
+    <!-- Neutral Colors -->
+    <color name="white">#FFFFFFFF</color>
+    <color name="black">#FF000000</color>
+    <color name="light_gray">#FFF5F5F5</color>
+    <color name="medium_gray">#FFE0E0E0</color>
+    <color name="dark_gray">#FF757575</color>
+    <color name="very_dark_gray">#FF424242</color>
+
+    <!-- Text Colors -->
+    <color name="text_primary">#FF212121</color>
+    <color name="text_secondary">#FF757575</color>
+    <color name="text_hint">#FFBDBDBD</color>
+    <color name="text_on_primary">#FFFFFFFF</color>
+
+    <!-- Background Colors -->
+    <color name="background_light">#FFFAFAFA</color>
+    <color name="surface_light">#FFFFFFFF</color>
+    <color name="card_background">#FFFFFFFF</color>
+
+    <!-- Dark Theme Colors -->
+    <color name="background_dark">#FF121212</color>
+    <color name="surface_dark">#FF1E1E1E</color>
+    <color name="card_background_dark">#FF2C2C2C</color>
+    <color name="text_primary_dark">#FFFFFFFF</color>
+    <color name="text_secondary_dark">#FFBBBBBB</color>
+
+    <!-- Ripple and Touch Colors -->
+    <color name="ripple_light">#1F000000</color>
+    <color name="ripple_dark">#1FFFFFFF</color>
+
+    <!-- Legacy colors for compatibility -->
+    <color name="purple_200">#FFBB86FC</color>
+    <color name="purple_500">#FF6200EE</color>
+    <color name="purple_700">#FF3700B3</color>
+    <color name="teal_200">#FF03DAC5</color>
+    <color name="teal_700">#FF018786</color>
+</resources>

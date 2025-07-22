@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+        <style name="Base.Theme.Todolist" parent="Theme.Material3.DayNight.NoActionBar">
+                <!-- Modern dark theme colors -->
+                <item name="colorPrimary">@color/dark_primary</item>
+                <item name="colorPrimaryVariant">@color/dark_primary_variant</item>
+                <item name="colorSecondary">@color/dark_secondary</item>
+                <item name="colorOnPrimary">@color/dark_on_primary</item>
+                <item name="colorOnSecondary">@color/white</item>
+                <item name="colorOnBackground">@color/dark_on_background</item>
+                <item name="colorOnSurface">@color/dark_on_surface</item>
+                <item name="colorSurface">@color/dark_surface</item>
+                <item name="android:colorBackground">@color/dark_background</item>
+                <item name="colorError">@color/dark_error</item>
+
+                <!-- Beautiful status bar and navigation -->
+                <item name="android:statusBarColor">@color/dark_background</item>
+                <item name="android:navigationBarColor">@color/dark_background</item>
+                <item name="android:windowLightStatusBar">false</item>
+                <item name="android:windowLightNavigationBar">false</item>
+
+                <!-- Enhanced text colors -->
+                <item name="android:textColorPrimary">@color/dark_text_primary</item>
+                <item name="android:textColorSecondary">@color/dark_text_secondary</item>
+                <item name="android:textColorHint">@color/dark_text_hint</item>
+
+                <!-- Material components styling -->
+                <item name="colorControlNormal">@color/dark_text_secondary</item>
+                <item name="colorControlActivated">@color/dark_primary</item>
+                <item name="colorControlHighlight">@color/dark_primary_variant</item>
+
+                <!-- Fix popup menu theme for dark mode -->
+                <item name="popupTheme">@style/DarkPopupMenuTheme</item>
+                <item name="actionOverflowMenuStyle">@style/DarkOverflowMenu</item>
+        </style>
+</resources>

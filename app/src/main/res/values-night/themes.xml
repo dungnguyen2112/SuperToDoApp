@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Dark Theme Override -->
+    <style name="Base.Theme.Todolist" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- Dark theme colors -->
+        <item name="colorPrimary">@color/dark_primary</item>
+        <item name="colorPrimaryVariant">@color/dark_primary_variant</item>
+        <item name="colorSecondary">@color/dark_secondary</item>
+        <item name="colorOnPrimary">@color/dark_on_primary</item>
+        <item name="colorOnSecondary">@color/white</item>
+        <item name="colorOnBackground">@color/dark_on_background</item>
+        <item name="colorOnSurface">@color/dark_on_surface</item>
+        <item name="colorSurface">@color/dark_surface</item>
+        <item name="android:colorBackground">@color/dark_background</item>
+        <item name="colorError">@color/dark_error</item>
+
+        <!-- Dark status bar and navigation -->
+        <item name="android:statusBarColor">@color/dark_background</item>
+        <item name="android:navigationBarColor">@color/dark_background</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="27">false</item>
+
+        <!-- Dark text colors -->
+        <item name="android:textColorPrimary">@color/dark_text_primary</item>
+        <item name="android:textColorSecondary">@color/dark_text_secondary</item>
+        <item name="android:textColorHint">@color/dark_text_hint</item>
+
+        <!-- Material components styling for dark -->
+        <item name="colorControlNormal">@color/dark_text_secondary</item>
+        <item name="colorControlActivated">@color/dark_primary</item>
+        <item name="colorControlHighlight">@color/dark_primary_variant</item>
+
+        <!-- Dark popup theme -->
+        <item name="popupTheme">@style/DarkPopupMenuTheme</item>
+        <item name="actionOverflowMenuStyle">@style/DarkOverflowMenu</item>
+    </style>
+
+    <!-- Dark popup menu theme -->
+    <style name="DarkPopupMenuTheme" parent="ThemeOverlay.AppCompat.Dark">
+        <item name="android:colorBackground">@color/dark_surface</item>
+        <item name="android:textColorPrimary">@color/dark_text_primary</item>
+        <item name="android:textColorSecondary">@color/dark_text_secondary</item>
+        <item name="colorSurface">@color/dark_surface</item>
+        <item name="colorOnSurface">@color/dark_text_primary</item>
+    </style>
+
+    <!-- Dark overflow menu style -->
+    <style name="DarkOverflowMenu" parent="Widget.AppCompat.PopupMenu.Overflow">
+        <item name="android:popupBackground">@color/dark_surface</item>
+        <item name="android:textColor">@color/dark_text_primary</item>
+    </style>
+</resources>
