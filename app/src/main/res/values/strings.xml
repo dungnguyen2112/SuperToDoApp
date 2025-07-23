@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">Todolist</string>
+    <string name="widget_description">Hiển thị các task sắp đến hạn trong tuần</string>
 </resources>

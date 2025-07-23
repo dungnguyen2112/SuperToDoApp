@@ -11,7 +11,7 @@ import java.util.List;
 
 public class DatabaseHelper extends SQLiteOpenHelper {
     private static final String DATABASE_NAME = "todo.db";
-    private static final int DATABASE_VERSION = 1;
+    private static final int DATABASE_VERSION = 3; // Increment version to trigger migration
     private static final String TABLE_TASKS = "tasks";
 
     // Columns
@@ -21,9 +21,58 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     private static final String COLUMN_TOPIC = "topic";
     private static final String COLUMN_IS_COMPLETED = "is_completed";
     private static final String COLUMN_CREATED_DATE = "created_date";
+    private static final String COLUMN_DEADLINE = "deadline";
+    private static final String COLUMN_REMINDER_ENABLED = "reminder_enabled";
+    private static final String COLUMN_REMINDER_TIME = "reminder_time";
 
     public DatabaseHelper(Context context) {
         super(context, DATABASE_NAME, null, DATABASE_VERSION);
+    }
+
+    @SuppressLint("Range")
+    private Task createTaskFromCursor(Cursor cursor) {
+        Task task = new Task();
+
+        // Use getColumnIndexOrThrow for better error handling
+        try {
+            task.setId(cursor.getInt(cursor.getColumnIndexOrThrow(COLUMN_ID)));
+            task.setTitle(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_TITLE)));
+            task.setDescription(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_DESCRIPTION)));
+            task.setTopic(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_TOPIC)));
+            task.setCompleted(cursor.getInt(cursor.getColumnIndexOrThrow(COLUMN_IS_COMPLETED)) == 1);
+            task.setCreatedDate(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_CREATED_DATE)));
+
+            // Handle deadline column safely
+            int deadlineIndex = cursor.getColumnIndex(COLUMN_DEADLINE);
+            if (deadlineIndex != -1) {
+                task.setDeadline(cursor.getString(deadlineIndex));
+            } else {
+                task.setDeadline(null);
+            }
+
+            // Handle reminder fields safely for backward compatibility
+            int reminderEnabledIndex = cursor.getColumnIndex(COLUMN_REMINDER_ENABLED);
+            int reminderTimeIndex = cursor.getColumnIndex(COLUMN_REMINDER_TIME);
+
+            if (reminderEnabledIndex != -1) {
+                task.setReminderEnabled(cursor.getInt(reminderEnabledIndex) == 1);
+            } else {
+                task.setReminderEnabled(false);
+            }
+
+            if (reminderTimeIndex != -1) {
+                task.setReminderTime(cursor.getString(reminderTimeIndex));
+            } else {
+                task.setReminderTime(null);
+            }
+
+        } catch (IllegalArgumentException e) {
+            // Log the error for debugging
+            android.util.Log.e("DatabaseHelper", "Error reading cursor data: " + e.getMessage());
+            return null;
+        }
+        
+        return task;
     }
 
     @Override
@@ -34,15 +83,25 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 + COLUMN_DESCRIPTION + " TEXT,"
                 + COLUMN_TOPIC + " TEXT,"
                 + COLUMN_IS_COMPLETED + " INTEGER DEFAULT 0,"
-                + COLUMN_CREATED_DATE + " TEXT"
+                + COLUMN_CREATED_DATE + " TEXT,"
+                + COLUMN_DEADLINE + " TEXT,"
+                + COLUMN_REMINDER_ENABLED + " INTEGER DEFAULT 0,"
+                + COLUMN_REMINDER_TIME + " TEXT"
                 + ")";
         db.execSQL(createTable);
     }
 
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
-        db.execSQL("DROP TABLE IF EXISTS " + TABLE_TASKS);
-        onCreate(db);
+        if (oldVersion < 2) {
+            // Add reminder columns to existing table
+            db.execSQL("ALTER TABLE " + TABLE_TASKS + " ADD COLUMN " + COLUMN_REMINDER_ENABLED + " INTEGER DEFAULT 0");
+            db.execSQL("ALTER TABLE " + TABLE_TASKS + " ADD COLUMN " + COLUMN_REMINDER_TIME + " TEXT");
+        }
+        if (oldVersion < 3) {
+            // Add deadline column to existing table
+            db.execSQL("ALTER TABLE " + TABLE_TASKS + " ADD COLUMN " + COLUMN_DEADLINE + " TEXT");
+        }
     }
 
     // CRUD Operations
@@ -54,13 +113,15 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         values.put(COLUMN_TOPIC, task.getTopic());
         values.put(COLUMN_IS_COMPLETED, task.isCompleted() ? 1 : 0);
         values.put(COLUMN_CREATED_DATE, task.getCreatedDate());
+        values.put(COLUMN_DEADLINE, task.getDeadline());
+        values.put(COLUMN_REMINDER_ENABLED, task.isReminderEnabled() ? 1 : 0);
+        values.put(COLUMN_REMINDER_TIME, task.getReminderTime());
 
         long id = db.insert(TABLE_TASKS, null, values);
         db.close();
         return id;
     }
 
-    @SuppressLint("Range")
     public List<Task> getAllTasks(int limit, int offset) {
         List<Task> tasks = new ArrayList<>();
         String selectQuery = "SELECT * FROM " + TABLE_TASKS + " ORDER BY " + COLUMN_ID + " DESC LIMIT ? OFFSET ?";
@@ -69,14 +130,10 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
         if (cursor.moveToFirst()) {
             do {
-                Task task = new Task();
-                task.setId(cursor.getInt(cursor.getColumnIndex(COLUMN_ID)));
-                task.setTitle(cursor.getString(cursor.getColumnIndex(COLUMN_TITLE)));
-                task.setDescription(cursor.getString(cursor.getColumnIndex(COLUMN_DESCRIPTION)));
-                task.setTopic(cursor.getString(cursor.getColumnIndex(COLUMN_TOPIC)));
-                task.setCompleted(cursor.getInt(cursor.getColumnIndex(COLUMN_IS_COMPLETED)) == 1);
-                task.setCreatedDate(cursor.getString(cursor.getColumnIndex(COLUMN_CREATED_DATE)));
-                tasks.add(task);
+                Task task = createTaskFromCursor(cursor);
+                if (task != null) {
+                    tasks.add(task);
+                }
             } while (cursor.moveToNext());
         }
         cursor.close();
@@ -84,7 +141,6 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         return tasks;
     }
 
-    @SuppressLint("Range")
     public List<Task> getAllTasks() {
         List<Task> tasks = new ArrayList<>();
         String selectQuery = "SELECT * FROM " + TABLE_TASKS + " ORDER BY " + COLUMN_ID + " DESC";
@@ -93,14 +149,10 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
         if (cursor.moveToFirst()) {
             do {
-                Task task = new Task();
-                task.setId(cursor.getInt(cursor.getColumnIndex(COLUMN_ID)));
-                task.setTitle(cursor.getString(cursor.getColumnIndex(COLUMN_TITLE)));
-                task.setDescription(cursor.getString(cursor.getColumnIndex(COLUMN_DESCRIPTION)));
-                task.setTopic(cursor.getString(cursor.getColumnIndex(COLUMN_TOPIC)));
-                task.setCompleted(cursor.getInt(cursor.getColumnIndex(COLUMN_IS_COMPLETED)) == 1);
-                task.setCreatedDate(cursor.getString(cursor.getColumnIndex(COLUMN_CREATED_DATE)));
-                tasks.add(task);
+                Task task = createTaskFromCursor(cursor);
+                if (task != null) {
+                    tasks.add(task);
+                }
             } while (cursor.moveToNext());
         }
         cursor.close();
@@ -108,7 +160,6 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         return tasks;
     }
 
-    @SuppressLint("Range")
     public List<Task> getTasksByTopic(String topic, int limit, int offset) {
         List<Task> tasks = new ArrayList<>();
         String selectQuery = "SELECT * FROM " + TABLE_TASKS + " WHERE " + COLUMN_TOPIC + " = ? ORDER BY " + COLUMN_ID + " DESC LIMIT ? OFFSET ?";
@@ -117,14 +168,10 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
         if (cursor.moveToFirst()) {
             do {
-                Task task = new Task();
-                task.setId(cursor.getInt(cursor.getColumnIndex(COLUMN_ID)));
-                task.setTitle(cursor.getString(cursor.getColumnIndex(COLUMN_TITLE)));
-                task.setDescription(cursor.getString(cursor.getColumnIndex(COLUMN_DESCRIPTION)));
-                task.setTopic(cursor.getString(cursor.getColumnIndex(COLUMN_TOPIC)));
-                task.setCompleted(cursor.getInt(cursor.getColumnIndex(COLUMN_IS_COMPLETED)) == 1);
-                task.setCreatedDate(cursor.getString(cursor.getColumnIndex(COLUMN_CREATED_DATE)));
-                tasks.add(task);
+                Task task = createTaskFromCursor(cursor);
+                if (task != null) {
+                    tasks.add(task);
+                }
             } while (cursor.moveToNext());
         }
         cursor.close();
@@ -132,7 +179,6 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         return tasks;
     }
 
-    @SuppressLint("Range")
     public List<Task> getTasksByTopic(String topic) {
         List<Task> tasks = new ArrayList<>();
         String selectQuery = "SELECT * FROM " + TABLE_TASKS + " WHERE " + COLUMN_TOPIC + " = ? ORDER BY " + COLUMN_ID + " DESC";
@@ -141,14 +187,10 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
         if (cursor.moveToFirst()) {
             do {
-                Task task = new Task();
-                task.setId(cursor.getInt(cursor.getColumnIndex(COLUMN_ID)));
-                task.setTitle(cursor.getString(cursor.getColumnIndex(COLUMN_TITLE)));
-                task.setDescription(cursor.getString(cursor.getColumnIndex(COLUMN_DESCRIPTION)));
-                task.setTopic(cursor.getString(cursor.getColumnIndex(COLUMN_TOPIC)));
-                task.setCompleted(cursor.getInt(cursor.getColumnIndex(COLUMN_IS_COMPLETED)) == 1);
-                task.setCreatedDate(cursor.getString(cursor.getColumnIndex(COLUMN_CREATED_DATE)));
-                tasks.add(task);
+                Task task = createTaskFromCursor(cursor);
+                if (task != null) {
+                    tasks.add(task);
+                }
             } while (cursor.moveToNext());
         }
         cursor.close();
@@ -156,7 +198,6 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         return tasks;
     }
 
-    @SuppressLint("Range")
     public Task getTaskById(int taskId) {
         SQLiteDatabase db = this.getReadableDatabase();
         String selectQuery = "SELECT * FROM " + TABLE_TASKS + " WHERE " + COLUMN_ID + " = ?";
@@ -164,13 +205,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
         Task task = null;
         if (cursor.moveToFirst()) {
-            task = new Task();
-            task.setId(cursor.getInt(cursor.getColumnIndex(COLUMN_ID)));
-            task.setTitle(cursor.getString(cursor.getColumnIndex(COLUMN_TITLE)));
-            task.setDescription(cursor.getString(cursor.getColumnIndex(COLUMN_DESCRIPTION)));
-            task.setTopic(cursor.getString(cursor.getColumnIndex(COLUMN_TOPIC)));
-            task.setCompleted(cursor.getInt(cursor.getColumnIndex(COLUMN_IS_COMPLETED)) == 1);
-            task.setCreatedDate(cursor.getString(cursor.getColumnIndex(COLUMN_CREATED_DATE)));
+            task = createTaskFromCursor(cursor);
         }
 
         cursor.close();
@@ -190,6 +225,9 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         values.put(COLUMN_DESCRIPTION, task.getDescription());
         values.put(COLUMN_TOPIC, task.getTopic());
         values.put(COLUMN_IS_COMPLETED, task.isCompleted() ? 1 : 0);
+        values.put(COLUMN_DEADLINE, task.getDeadline());
+        values.put(COLUMN_REMINDER_ENABLED, task.isReminderEnabled() ? 1 : 0);
+        values.put(COLUMN_REMINDER_TIME, task.getReminderTime());
 
         int result = db.update(TABLE_TASKS, values, COLUMN_ID + " = ?",
                 new String[]{String.valueOf(task.getId())});

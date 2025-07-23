@@ -30,4 +30,10 @@
     </style>
 
     <style name="Theme.Todolist" parent="Base.Theme.Todolist" />
+
+    <!-- NoActionBar theme for PIN activities -->
+    <style name="Theme.Todolist.NoActionBar" parent="Theme.Todolist">
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+    </style>
 </resources>

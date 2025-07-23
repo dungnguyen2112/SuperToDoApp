@@ -7,6 +7,9 @@ public class Task {
     private String topic;
     private boolean isCompleted;
     private String createdDate;
+    private String deadline;
+    private boolean reminderEnabled;
+    private String reminderTime; // Format: "yyyy-MM-dd HH:mm"
 
     public Task() {}
 
@@ -15,6 +18,7 @@ public class Task {
         this.description = description;
         this.topic = topic;
         this.isCompleted = false;
+        this.reminderEnabled = false;
         this.createdDate = java.text.DateFormat.getDateTimeInstance().format(new java.util.Date());
     }
 
@@ -36,4 +40,28 @@ public class Task {
 
     public String getCreatedDate() { return createdDate; }
     public void setCreatedDate(String createdDate) { this.createdDate = createdDate; }
+
+    public String getDeadline() {
+        return deadline;
+    }
+
+    public void setDeadline(String deadline) {
+        this.deadline = deadline;
+    }
+
+    public boolean isReminderEnabled() {
+        return reminderEnabled;
+    }
+
+    public void setReminderEnabled(boolean reminderEnabled) {
+        this.reminderEnabled = reminderEnabled;
+    }
+
+    public String getReminderTime() {
+        return reminderTime;
+    }
+
+    public void setReminderTime(String reminderTime) {
+        this.reminderTime = reminderTime;
+    }
 }

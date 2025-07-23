@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="8dp"
+    android:background="@drawable/widget_item_background">
+
+    <TextView
+        android:id="@+id/widget_item_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Task Title"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:textColor="#FFFFFF"
+        android:maxLines="1"
+        android:ellipsize="end" />
+
+    <TextView
+        android:id="@+id/widget_item_deadline"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Due: 2025-01-01"
+        android:textSize="10sp"
+        android:textColor="#CCFFFFFF"
+        android:layout_marginTop="2dp"
+        android:maxLines="1" />
+
+</LinearLayout>

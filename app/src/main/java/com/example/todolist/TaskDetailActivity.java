@@ -15,10 +15,11 @@ public class TaskDetailActivity extends AppCompatActivity {
     private static final int EDIT_TASK_REQUEST_CODE = 100;
 
     private DatabaseHelper databaseHelper;
+    private ReminderAlarmManager reminderAlarmManager;
     private Task currentTask;
 
     // UI elements
-    private TextView textTitle, textDescription, textTopic, textDate, textStatus;
+    private TextView textTitle, textDescription, textTopic, textDate, textStatus, textDeadline, textDeadlineStatus;
     private CheckBox checkboxCompleted;
     private MaterialButton buttonEdit, buttonDelete;
 
@@ -31,6 +32,7 @@ public class TaskDetailActivity extends AppCompatActivity {
         setContentView(R.layout.activity_task_detail);
 
         databaseHelper = new DatabaseHelper(this);
+        reminderAlarmManager = new ReminderAlarmManager(this);
 
         // Setup toolbar
         Toolbar toolbar = findViewById(R.id.toolbar);
@@ -51,6 +53,8 @@ public class TaskDetailActivity extends AppCompatActivity {
         textTopic = findViewById(R.id.text_topic);
         textDate = findViewById(R.id.text_date);
         textStatus = findViewById(R.id.text_status);
+        textDeadline = findViewById(R.id.text_deadline);
+        textDeadlineStatus = findViewById(R.id.text_deadline_status);
         checkboxCompleted = findViewById(R.id.checkbox_completed);
         buttonEdit = findViewById(R.id.button_edit);
         buttonDelete = findViewById(R.id.button_delete);
@@ -59,13 +63,8 @@ public class TaskDetailActivity extends AppCompatActivity {
     private void loadTaskData() {
         Intent intent = getIntent();
 
-        // Get task data from intent
+        // Get task ID from intent
         int taskId = intent.getIntExtra("task_id", -1);
-        String taskTitle = intent.getStringExtra("task_title");
-        String taskDescription = intent.getStringExtra("task_description");
-        String taskTopic = intent.getStringExtra("task_topic");
-        String taskDate = intent.getStringExtra("task_date");
-        boolean taskCompleted = intent.getBooleanExtra("task_completed", false);
 
         if (taskId == -1) {
             Toast.makeText(this, "Error: Invalid task data", Toast.LENGTH_SHORT).show();
@@ -73,14 +72,14 @@ public class TaskDetailActivity extends AppCompatActivity {
             return;
         }
 
-        // Create task object
-        currentTask = new Task();
-        currentTask.setId(taskId);
-        currentTask.setTitle(taskTitle);
-        currentTask.setDescription(taskDescription);
-        currentTask.setTopic(taskTopic);
-        currentTask.setCreatedDate(taskDate);
-        currentTask.setCompleted(taskCompleted);
+        // Load complete task data from database
+        currentTask = databaseHelper.getTaskById(taskId);
+        
+        if (currentTask == null) {
+            Toast.makeText(this, "Error: Task not found", Toast.LENGTH_SHORT).show();
+            finish();
+            return;
+        }
 
         // Update UI
         updateUI();
@@ -103,6 +102,9 @@ public class TaskDetailActivity extends AppCompatActivity {
 
         textDate.setText(currentTask.getCreatedDate() != null ? currentTask.getCreatedDate() : "Unknown date");
 
+        // Display deadline information
+        updateDeadlineDisplay();
+
         checkboxCompleted.setChecked(currentTask.isCompleted());
         updateStatusText();
     }
@@ -112,6 +114,70 @@ public class TaskDetailActivity extends AppCompatActivity {
             textStatus.setText("Task completed");
         } else {
             textStatus.setText("Mark as completed");
+        }
+    }
+
+    private void updateDeadlineDisplay() {
+        if (currentTask.getDeadline() != null && !currentTask.getDeadline().isEmpty()) {
+            textDeadline.setText(currentTask.getDeadline());
+            textDeadline.setVisibility(android.view.View.VISIBLE);
+            
+            // Check if task is overdue or coming due soon
+            updateDeadlineStatus();
+        } else {
+            textDeadline.setText("No deadline set");
+            textDeadline.setVisibility(android.view.View.VISIBLE);
+            textDeadlineStatus.setVisibility(android.view.View.GONE);
+        }
+    }
+
+    private void updateDeadlineStatus() {
+        if (currentTask.getDeadline() == null || currentTask.getDeadline().isEmpty()) {
+            textDeadlineStatus.setVisibility(android.view.View.GONE);
+            return;
+        }
+
+        try {
+            java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.getDefault());
+            java.util.Date deadlineDate = sdf.parse(currentTask.getDeadline());
+            java.util.Date now = new java.util.Date();
+            
+            long timeDiff = deadlineDate.getTime() - now.getTime();
+            long daysDiff = timeDiff / (1000 * 60 * 60 * 24);
+            long hoursDiff = timeDiff / (1000 * 60 * 60);
+            
+            if (timeDiff < 0) {
+                // Overdue
+                long daysOverdue = Math.abs(daysDiff);
+                if (daysOverdue > 0) {
+                    textDeadlineStatus.setText("Overdue by " + daysOverdue + " day(s)");
+                } else {
+                    long hoursOverdue = Math.abs(hoursDiff);
+                    textDeadlineStatus.setText("Overdue by " + hoursOverdue + " hour(s)");
+                }
+                textDeadlineStatus.setTextColor(getResources().getColor(android.R.color.holo_red_dark, getTheme()));
+                textDeadlineStatus.setVisibility(android.view.View.VISIBLE);
+            } else if (daysDiff <= 1) {
+                // Due within 1 day
+                if (daysDiff == 0) {
+                    textDeadlineStatus.setText("Due today!");
+                } else {
+                    textDeadlineStatus.setText("Due in " + hoursDiff + " hour(s)");
+                }
+                textDeadlineStatus.setTextColor(getResources().getColor(android.R.color.holo_orange_dark, getTheme()));
+                textDeadlineStatus.setVisibility(android.view.View.VISIBLE);
+            } else if (daysDiff <= 7) {
+                // Due within a week
+                textDeadlineStatus.setText("Due in " + daysDiff + " day(s)");
+                textDeadlineStatus.setTextColor(getResources().getColor(android.R.color.holo_blue_dark, getTheme()));
+                textDeadlineStatus.setVisibility(android.view.View.VISIBLE);
+            } else {
+                // More than a week away
+                textDeadlineStatus.setVisibility(android.view.View.GONE);
+            }
+        } catch (java.text.ParseException e) {
+            e.printStackTrace();
+            textDeadlineStatus.setVisibility(android.view.View.GONE);
         }
     }
 
@@ -176,6 +242,9 @@ public class TaskDetailActivity extends AppCompatActivity {
         }
 
         try {
+            // Cancel reminder alarm before deleting
+            reminderAlarmManager.cancelReminder(currentTask.getId());
+            
             int result = databaseHelper.deleteTask(currentTask.getId());
             if (result > 0) {
                 Toast.makeText(this, "Task deleted successfully", Toast.LENGTH_SHORT).show();
@@ -213,21 +282,23 @@ public class TaskDetailActivity extends AppCompatActivity {
         super.onActivityResult(requestCode, resultCode, data);
 
         if (requestCode == EDIT_TASK_REQUEST_CODE && resultCode == RESULT_OK && data != null) {
-            // Update current task with edited data
+            // Task was updated in EditTaskActivity
             if (data.getBooleanExtra("task_updated", false)) {
-                currentTask.setTitle(data.getStringExtra("updated_task_title"));
-                currentTask.setDescription(data.getStringExtra("updated_task_description"));
-                currentTask.setTopic(data.getStringExtra("updated_task_topic"));
-                currentTask.setCreatedDate(data.getStringExtra("updated_task_date"));
-                currentTask.setCompleted(data.getBooleanExtra("updated_task_completed", false));
+                // Reload complete task data from database to get all updated fields including deadline and reminder
+                int taskId = currentTask.getId();
+                currentTask = databaseHelper.getTaskById(taskId);
+                
+                if (currentTask != null) {
+                    // Update UI with new data
+                    updateUI();
 
-                // Update UI with new data
-                updateUI();
+                    // Notify MainActivity about the changes
+                    setResultAndNotifyChange();
 
-                // Notify MainActivity about the changes
-                setResultAndNotifyChange();
-
-                Toast.makeText(this, "Task updated successfully", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, "Task updated successfully", Toast.LENGTH_SHORT).show();
+                } else {
+                    Toast.makeText(this, "Error: Could not reload task data", Toast.LENGTH_SHORT).show();
+                }
             }
         }
     }

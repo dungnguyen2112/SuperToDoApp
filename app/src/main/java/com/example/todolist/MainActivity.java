@@ -33,7 +33,7 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
     private DatabaseHelper databaseHelper;
     private TaskAdapter taskAdapter;
     private RecyclerView recyclerView;
-    private EditText editTitle, editDescription, editTopic;
+    private EditText editTitle, editDescription, editTopic, editDeadline;
     private Button buttonAddTask, buttonClearFilter;
     private Spinner spinnerTopicFilter;
     private List<Task> allTasks;
@@ -43,11 +43,22 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
     private ImageView iconToggle;
     private boolean isAddTaskExpanded = false;
 
+    // UI elements for collapsible tasks due next week section
+    private LinearLayout layoutTasksDueNextWeekHeader, layoutTasksDueNextWeekContent;
+    private ImageView iconTasksDueToggle;
+    private boolean isTasksDueNextWeekExpanded = true; // Mặc định mở
+
     // Pagination variables
     private int currentPage = 0;
     private boolean isLoading = false;
     private boolean hasMoreData = true;
     private String currentFilterTopic = null;
+
+    private ReminderService reminderService;
+    private ReminderAlarmManager reminderAlarmManager;
+
+    private RecyclerView recyclerTasksDueNextWeek;
+    private TaskAdapter tasksDueNextWeekAdapter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -62,6 +73,9 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
             return insets;
         });
+
+        reminderService = new ReminderService();
+        reminderAlarmManager = new ReminderAlarmManager(this);
 
         initViews();
         setupDatabase();
@@ -84,6 +98,14 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
                 spinnerTopicFilter.setAdapter(adapter);
             }
         }
+
+        recyclerTasksDueNextWeek = findViewById(R.id.recycler_tasks_due_next_week);
+        tasksDueNextWeekAdapter = new TaskAdapter(this, new ArrayList<>());
+        // Đảm bảo adapter này cũng có listener để click vào task hoạt động
+        tasksDueNextWeekAdapter.setOnTaskClickListener(this);
+        recyclerTasksDueNextWeek.setLayoutManager(new LinearLayoutManager(this));
+        recyclerTasksDueNextWeek.setAdapter(tasksDueNextWeekAdapter);
+        loadTasksDueNextWeek();
     }
 
     private void initViews() {
@@ -95,6 +117,7 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
         editTitle = findViewById(R.id.edit_title);
         editDescription = findViewById(R.id.edit_description);
         editTopic = findViewById(R.id.edit_topic);
+        editDeadline = findViewById(R.id.edit_deadline);
         buttonAddTask = findViewById(R.id.button_add_task);
         buttonClearFilter = findViewById(R.id.button_clear_filter);
         spinnerTopicFilter = findViewById(R.id.spinner_topic_filter);
@@ -103,6 +126,11 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
         layoutAddTaskHeader = findViewById(R.id.layout_add_task_header);
         layoutAddTaskContent = findViewById(R.id.layout_add_task_content);
         iconToggle = findViewById(R.id.icon_toggle);
+
+        // Tasks Due Next Week UI elements
+        layoutTasksDueNextWeekHeader = findViewById(R.id.layout_tasks_due_next_week_header);
+        layoutTasksDueNextWeekContent = findViewById(R.id.layout_tasks_due_next_week_content);
+        iconTasksDueToggle = findViewById(R.id.icon_tasks_due_toggle);
     }
 
     private void setupDatabase() {
@@ -143,10 +171,18 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
     private void setupClickListeners() {
         buttonAddTask.setOnClickListener(v -> addTask());
         buttonClearFilter.setOnClickListener(v -> clearFilter());
+
+        // Add date/time picker for deadline field
+        editDeadline.setOnClickListener(v -> showDateTimePicker());
+        editDeadline.setFocusable(false); // Prevent keyboard from showing
+        editDeadline.setClickable(true);
     }
 
     private void setupAddTaskToggle() {
         layoutAddTaskHeader.setOnClickListener(v -> toggleAddTaskSection());
+
+        // Setup Tasks Due Next Week toggle
+        layoutTasksDueNextWeekHeader.setOnClickListener(v -> toggleTasksDueNextWeekSection());
     }
 
     private void toggleAddTaskSection() {
@@ -162,10 +198,23 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
         }
     }
 
+    private void toggleTasksDueNextWeekSection() {
+        isTasksDueNextWeekExpanded = !isTasksDueNextWeekExpanded;
+
+        if (isTasksDueNextWeekExpanded) {
+            layoutTasksDueNextWeekContent.setVisibility(View.VISIBLE);
+            iconTasksDueToggle.setImageResource(android.R.drawable.arrow_up_float);
+        } else {
+            layoutTasksDueNextWeekContent.setVisibility(View.GONE);
+            iconTasksDueToggle.setImageResource(android.R.drawable.arrow_down_float);
+        }
+    }
+
     private void addTask() {
         String title = editTitle.getText().toString().trim();
         String description = editDescription.getText().toString().trim();
         String topic = editTopic.getText().toString().trim();
+        String deadline = editDeadline.getText().toString().trim();
 
         if (title.isEmpty()) {
             Toast.makeText(this, "Please enter task title", Toast.LENGTH_SHORT).show();
@@ -173,14 +222,28 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
         }
 
         Task task = new Task(title, description, topic.isEmpty() ? null : topic);
+
+        // Set deadline if provided
+        if (!deadline.isEmpty()) {
+            task.setDeadline(deadline);
+        }
+
         long id = databaseHelper.addTask(task);
 
         if (id > 0) {
+            task.setId((int) id);
+            
+            // Set reminder if enabled (for future enhancement, could add reminder UI to MainActivity)
+            if (task.isReminderEnabled()) {
+                reminderAlarmManager.setReminder(task);
+            }
+            
             Toast.makeText(this, "Task added successfully", Toast.LENGTH_SHORT).show();
             clearInputFields();
             toggleAddTaskSection(); // Collapse after adding
             resetPaginationAndLoad();
             setupTopicFilter();
+            loadTasksDueNextWeek(); // Refresh the due next week list
         } else {
             Toast.makeText(this, "Failed to add task", Toast.LENGTH_SHORT).show();
         }
@@ -190,6 +253,7 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
         editTitle.setText("");
         editDescription.setText("");
         editTopic.setText("");
+        editDeadline.setText("");
     }
 
     private void loadInitialTasks() {
@@ -328,11 +392,15 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
             .setMessage("Are you sure you want to delete \"" + task.getTitle() + "\"?")
             .setPositiveButton("Delete", (dialog, which) -> {
                 try {
+                    // Cancel reminder alarm before deleting
+                    reminderAlarmManager.cancelReminder(task.getId());
+                    
                     int result = databaseHelper.deleteTask(task.getId());
                     if (result > 0) {
                         taskAdapter.removeTask(task.getId());
                         Toast.makeText(this, "Task deleted successfully", Toast.LENGTH_SHORT).show();
                         setupTopicFilter(); // Refresh topic filter
+                        loadTasksDueNextWeek(); // Refresh the due next week list
                     } else {
                         Toast.makeText(this, "Failed to delete task", Toast.LENGTH_SHORT).show();
                     }
@@ -387,6 +455,7 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
             if (deletedTaskId != -1) {
                 taskAdapter.removeTask(deletedTaskId);
                 setupTopicFilter(); // Refresh topic filter
+                loadTasksDueNextWeek(); // Refresh the due next week list
                 Toast.makeText(this, "Task deleted successfully", Toast.LENGTH_SHORT).show();
             }
         } else if (data.getBooleanExtra("task_updated", false)) {
@@ -404,6 +473,7 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
 
                 taskAdapter.updateTask(updatedTask);
                 setupTopicFilter(); // Refresh topic filter in case topic changed
+                loadTasksDueNextWeek(); // Refresh the due next week list
             }
         }
     }
@@ -421,6 +491,17 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
         // Handle theme selection
         if (id == R.id.action_select_theme) {
             showThemeSelectionDialog();
+            return true;
+        }
+
+        // Handle PIN settings
+        if (id == R.id.action_change_pin) {
+            showChangePinDialog();
+            return true;
+        }
+
+        if (id == R.id.action_remove_pin) {
+            showRemovePinDialog();
             return true;
         }
 
@@ -442,5 +523,96 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
             .setNegativeButton("Cancel", null)
             .show();
     }
-}
 
+    private void loadTasksDueNextWeek() {
+        List<Task> tasksDueNextWeek = new ArrayList<>();
+        for (Task task : allTasks) {
+            if (task.getDeadline() != null && isWithinNextWeek(task.getDeadline())) {
+                tasksDueNextWeek.add(task);
+            }
+        }
+        tasksDueNextWeekAdapter.updateTasks(tasksDueNextWeek);
+    }
+
+    private boolean isWithinNextWeek(String deadline) {
+        try {
+            java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd");
+            java.util.Date deadlineDate = sdf.parse(deadline);
+            java.util.Calendar calendar = java.util.Calendar.getInstance();
+            java.util.Date today = calendar.getTime();
+            calendar.add(java.util.Calendar.DAY_OF_YEAR, 7);
+            java.util.Date nextWeek = calendar.getTime();
+            return deadlineDate.after(today) && deadlineDate.before(nextWeek);
+        } catch (java.text.ParseException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    private void showDateTimePicker() {
+        // Get current date and time for default values
+        java.util.Calendar calendar = java.util.Calendar.getInstance();
+        int year = calendar.get(java.util.Calendar.YEAR);
+        int month = calendar.get(java.util.Calendar.MONTH);
+        int day = calendar.get(java.util.Calendar.DAY_OF_MONTH);
+        int hour = calendar.get(java.util.Calendar.HOUR_OF_DAY);
+        int minute = calendar.get(java.util.Calendar.MINUTE);
+
+        // Show Date Picker first
+        android.app.DatePickerDialog datePickerDialog = new android.app.DatePickerDialog(
+            this,
+            (view, selectedYear, selectedMonth, selectedDay) -> {
+                // After date is selected, show Time Picker
+                android.app.TimePickerDialog timePickerDialog = new android.app.TimePickerDialog(
+                    this,
+                    (timeView, selectedHour, selectedMinute) -> {
+                        // Format and set the selected date and time
+                        String formattedDateTime = String.format(
+                            java.util.Locale.getDefault(),
+                            "%04d-%02d-%02d %02d:%02d",
+                            selectedYear,
+                            selectedMonth + 1, // Month is 0-based
+                            selectedDay,
+                            selectedHour,
+                            selectedMinute
+                        );
+                        editDeadline.setText(formattedDateTime);
+                    },
+                    hour,
+                    minute,
+                    true // Use 24-hour format
+                );
+                timePickerDialog.setTitle("Chọn thời gian");
+                timePickerDialog.show();
+            },
+            year,
+            month,
+            day
+        );
+
+        // Set minimum date to today
+        datePickerDialog.getDatePicker().setMinDate(System.currentTimeMillis());
+        datePickerDialog.setTitle("Chọn ngày");
+        datePickerDialog.show();
+    }
+
+    private void showChangePinDialog() {
+        Intent intent = new Intent(this, PinEntryActivity.class);
+        intent.putExtra("setup_mode", true);
+        startActivity(intent);
+    }
+
+    private void showRemovePinDialog() {
+        new AlertDialog.Builder(this)
+            .setTitle("Remove PIN")
+            .setMessage("Are you sure you want to remove PIN protection? This will make your app accessible without PIN verification.")
+            .setPositiveButton("Remove", (dialog, which) -> {
+                PinManager pinManager = new PinManager(this);
+                pinManager.clearPin();
+                Toast.makeText(this, "PIN protection removed", Toast.LENGTH_SHORT).show();
+            })
+            .setNegativeButton("Cancel", null)
+            .setIcon(android.R.drawable.ic_dialog_alert)
+            .show();
+    }
+}

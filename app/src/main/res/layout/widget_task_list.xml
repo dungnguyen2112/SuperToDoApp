@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_container"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="12dp"
+    android:background="@drawable/widget_background"
+    android:clickable="true"
+    android:minHeight="80dp">
+
+    <TextView
+        android:id="@+id/widget_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Tasks tuần này"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:textColor="#FFFFFF"
+        android:gravity="center"
+        android:layout_marginBottom="8dp"
+        android:fontFamily="sans-serif-medium" />
+
+    <TextView
+        android:id="@+id/widget_count"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="0 tasks"
+        android:textSize="13sp"
+        android:textColor="#CCFFFFFF"
+        android:gravity="center"
+        android:layout_marginBottom="12dp"
+        android:background="#22FFFFFF"
+        android:padding="6dp"
+        android:fontFamily="sans-serif"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/widget_task_text"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text=""
+        android:textSize="13sp"
+        android:textColor="#FFFFFF"
+        android:gravity="start"
+        android:lineSpacingExtra="4dp"
+        android:fontFamily="sans-serif"
+        android:layout_marginBottom="8dp" />
+
+    <TextView
+        android:id="@+id/widget_empty_text"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Không có task sắp đến hạn"
+        android:textSize="13sp"
+        android:textColor="#BBFFFFFF"
+        android:gravity="center"
+        android:visibility="gone"
+        android:fontFamily="sans-serif"
+        android:padding="16dp" />
+
+    <LinearLayout
+        android:id="@+id/widget_empty_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:visibility="gone"
+        android:padding="16dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="📋"
+            android:textSize="32dp"
+            android:layout_marginBottom="8dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Không có task nào"
+            android:textSize="13sp"
+            android:textColor="#CCFFFFFF"
+            android:fontFamily="sans-serif" />
+
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/widget_update_time"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Cập nhật: --:--"
+        android:textSize="11sp"
+        android:textColor="#99FFFFFF"
+        android:gravity="end"
+        android:layout_marginTop="8dp"
+        android:fontFamily="sans-serif" />
+
+</LinearLayout>

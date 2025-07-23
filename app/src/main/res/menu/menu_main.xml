@@ -8,4 +8,16 @@
         android:icon="@android:drawable/ic_menu_preferences"
         app:showAsAction="never" />
 
+    <item
+        android:id="@+id/action_change_pin"
+        android:title="Change PIN"
+        android:icon="@drawable/ic_lock"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_remove_pin"
+        android:title="Remove PIN"
+        android:icon="@drawable/ic_lock"
+        app:showAsAction="never" />
+
 </menu>

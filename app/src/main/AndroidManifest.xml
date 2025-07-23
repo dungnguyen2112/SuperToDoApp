@@ -12,14 +12,28 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Todolist">
 
+        <!-- Splash Activity as launcher -->
         <activity
-            android:name=".MainActivity"
-            android:exported="true">
+            android:name=".SplashActivity"
+            android:exported="true"
+            android:theme="@style/Theme.Todolist.NoActionBar">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- PIN Entry Activity -->
+        <activity
+            android:name=".PinEntryActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Todolist.NoActionBar"
+            android:screenOrientation="portrait" />
+
+        <!-- Main Activity -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="false" />
 
         <activity
             android:name=".TaskDetailActivity"
@@ -31,6 +45,32 @@
             android:exported="false"
             android:parentActivityName=".TaskDetailActivity" />
 
+        <service
+            android:name=".ReminderService"
+            android:exported="false" />
+
+        <receiver
+            android:name=".ReminderReceiver"
+            android:exported="false" />
+
+        <!-- Widget Provider -->
+        <receiver
+            android:name=".TaskWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/task_widget_info" />
+        </receiver>
+
     </application>
+
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
 
 </manifest>

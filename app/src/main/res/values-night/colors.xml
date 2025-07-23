@@ -7,6 +7,7 @@
     <color name="text_hint">#FF757575</color>
     <color name="background_light">#FF0F0F0F</color>
     <color name="surface_light">#FF1A1A1A</color>
+    <color name="text_on_primary">#FFFFFFFF</color>
 
     <!-- Modern Dark Theme Colors -->
     <color name="purple_200">#FFBB86FC</color>
@@ -39,4 +40,13 @@
     <!-- Gradient colors for modern look -->
     <color name="dark_gradient_start">#FF8B5FE8</color>
     <color name="dark_gradient_end">#FFFF6B9D</color>
+
+    <!-- Primary colors override for dark theme -->
+    <color name="primary_blue">#FF8B5FE8</color>
+    <color name="primary_blue_dark">#FF6A42C2</color>
+    <color name="primary_blue_light">#FFA788F5</color>
+
+    <color name="accent_teal">#FF64FFDA</color>
+    <color name="accent_teal_dark">#FF00B8A9</color>
+    <color name="accent_teal_light">#FF9FFFF0</color>
 </resources>

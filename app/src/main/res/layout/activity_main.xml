@@ -121,7 +121,7 @@
                 <com.google.android.material.textfield.TextInputLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginBottom="20dp"
+                    android:layout_marginBottom="16dp"
                     android:hint="Topic"
                     app:boxStrokeColor="@color/primary_blue"
                     app:hintTextColor="@color/primary_blue"
@@ -134,6 +134,30 @@
                         android:id="@+id/edit_topic"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content" />
+
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <!-- Add Deadline Field -->
+                <com.google.android.material.textfield.TextInputLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="20dp"
+                    android:hint="Deadline (YYYY-MM-DD HH:MM)"
+                    app:boxStrokeColor="@color/primary_blue"
+                    app:hintTextColor="@color/primary_blue"
+                    app:boxCornerRadiusTopStart="12dp"
+                    app:boxCornerRadiusTopEnd="12dp"
+                    app:boxCornerRadiusBottomStart="12dp"
+                    app:boxCornerRadiusBottomEnd="12dp"
+                    app:startIconDrawable="@android:drawable/ic_menu_my_calendar"
+                    app:startIconTint="@color/primary_blue">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/edit_deadline"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="datetime"
+                        android:maxLines="1" />
 
                 </com.google.android.material.textfield.TextInputLayout>
 
@@ -179,9 +203,10 @@
                 android:layout_height="48dp"
                 android:layout_weight="1"
                 android:layout_marginEnd="12dp"
-                android:gravity="center_vertical"
-                android:paddingStart="8dp"
-                android:paddingEnd="8dp" />
+                android:gravity="center_vertical|start"
+                android:paddingStart="12dp"
+                android:paddingEnd="8dp"
+                android:layout_gravity="center_vertical" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/button_clear_filter"
@@ -192,7 +217,8 @@
                 android:textStyle="bold"
                 style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                 app:strokeColor="@color/primary_blue"
-                app:cornerRadius="12dp" />
+                app:cornerRadius="12dp"
+                android:layout_gravity="center_vertical" />
 
         </LinearLayout>
 
@@ -226,5 +252,75 @@
             android:paddingBottom="16dp" />
 
     </LinearLayout>
+
+    <!-- Section for tasks due next week -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/card_tasks_due_next_week"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="16dp"
+        app:cardCornerRadius="16dp"
+        app:cardElevation="8dp"
+        app:cardBackgroundColor="@color/card_background">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <!-- Header có thể click để collapse/expand -->
+            <LinearLayout
+                android:id="@+id/layout_tasks_due_next_week_header"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:padding="16dp"
+                android:background="?android:attr/selectableItemBackground"
+                android:clickable="true"
+                android:focusable="true">
+
+                <TextView
+                    android:id="@+id/text_tasks_due_next_week_header"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Tasks Due Next Week"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/text_primary"
+                    android:drawableStart="@android:drawable/ic_menu_recent_history"
+                    android:drawablePadding="12dp"
+                    android:gravity="center_vertical" />
+
+                <ImageView
+                    android:id="@+id/icon_tasks_due_toggle"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@android:drawable/arrow_down_float"
+                    android:layout_gravity="center_vertical"
+                    app:tint="@color/text_secondary" />
+
+            </LinearLayout>
+
+            <!-- Content có thể ẩn/hiện -->
+            <LinearLayout
+                android:id="@+id/layout_tasks_due_next_week_content"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingHorizontal="16dp"
+                android:paddingBottom="16dp">
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/recycler_tasks_due_next_week"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:scrollbars="vertical" />
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+    </androidx.cardview.widget.CardView>
 
 </LinearLayout>
