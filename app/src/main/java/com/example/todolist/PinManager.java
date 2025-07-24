@@ -28,7 +28,9 @@ public class PinManager {
     }
 
     public boolean isPinSet() {
-        return prefs.getBoolean(KEY_PIN_SET, false);
+        boolean isSet = prefs.getBoolean(KEY_PIN_SET, false);
+        android.util.Log.d("PinManager", "isPinSet() returning: " + isSet);
+        return isSet;
     }
 
     public void setPin(String pin) {
@@ -50,13 +52,13 @@ public class PinManager {
                 return false;
             }
             
-            String storedHash = prefs.getString(KEY_PIN_HASH, "");
+            String storedHash = prefs.getString(KEY_PIN_HASH, "").trim();
             if (storedHash.isEmpty()) {
                 android.util.Log.d("PinManager", "No stored PIN hash found");
                 return false;
             }
             
-            String hashedPin = hashPin(pin);
+            String hashedPin = hashPin(pin).trim();
             boolean isValid = hashedPin.equals(storedHash);
             android.util.Log.d("PinManager", "PIN verification result: " + isValid);
             return isValid;

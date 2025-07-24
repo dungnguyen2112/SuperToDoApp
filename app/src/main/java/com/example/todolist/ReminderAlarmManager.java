@@ -21,60 +21,103 @@ public class ReminderAlarmManager {
     }
 
     public void setReminder(Task task) {
-        if (!task.isReminderEnabled() || task.getReminderTime() == null) {
-            Log.d(TAG, "Reminder not enabled or time not set for task: " + task.getId());
+        if (!task.isReminderEnabled() || task.getDeadline() == null || task.isCompleted()) {
+            Log.d(TAG, "Reminder not enabled, no deadline, or task completed for task: " + task.getId());
             return;
         }
 
         try {
-            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault());
-            Calendar reminderTime = Calendar.getInstance();
-            reminderTime.setTime(sdf.parse(task.getReminderTime()));
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+            Calendar deadlineCalendar = Calendar.getInstance();
+            deadlineCalendar.setTime(sdf.parse(task.getDeadline()));
+            
+            // Set deadline to end of day (23:59:59)
+            deadlineCalendar.set(Calendar.HOUR_OF_DAY, 23);
+            deadlineCalendar.set(Calendar.MINUTE, 59);
+            deadlineCalendar.set(Calendar.SECOND, 59);
 
-            // Check if reminder time is in the future
             Calendar now = Calendar.getInstance();
-            if (reminderTime.before(now)) {
-                Log.d(TAG, "Reminder time is in the past, skipping: " + task.getReminderTime());
-                return;
+            
+            // Calculate one week before deadline
+            Calendar oneWeekBefore = (Calendar) deadlineCalendar.clone();
+            oneWeekBefore.add(Calendar.DAY_OF_YEAR, -7);
+
+            // Daily reminder times: 9:00 AM, 2:00 PM, 6:00 PM
+            int[] reminderHours = {9, 14, 18};
+            
+            // Cancel any existing reminders first
+            cancelReminder(task.getId());
+            
+            int alarmId = task.getId() * 100; // Base ID for this task
+            int alarmsSet = 0;
+
+            // Set reminders for each day in the week before deadline
+            for (Calendar currentDay = (Calendar) oneWeekBefore.clone(); 
+                 !currentDay.after(deadlineCalendar); 
+                 currentDay.add(Calendar.DAY_OF_YEAR, 1)) {
+                
+                // Set 3 reminders per day (9 AM, 2 PM, 6 PM)
+                for (int hour : reminderHours) {
+                    Calendar reminderTime = (Calendar) currentDay.clone();
+                    reminderTime.set(Calendar.HOUR_OF_DAY, hour);
+                    reminderTime.set(Calendar.MINUTE, 0);
+                    reminderTime.set(Calendar.SECOND, 0);
+                    reminderTime.set(Calendar.MILLISECOND, 0);
+
+                    // Only set reminder if it's in the future
+                    if (reminderTime.after(now)) {
+                        Intent intent = new Intent(context, ReminderReceiver.class);
+                        intent.putExtra("task_id", task.getId());
+                        intent.putExtra("task_title", task.getTitle());
+                        intent.putExtra("task_description", task.getDescription());
+                        intent.putExtra("reminder_type", "daily_reminder");
+
+                        PendingIntent pendingIntent = PendingIntent.getBroadcast(
+                            context,
+                            alarmId++, // Unique ID for each reminder
+                            intent,
+                            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+                        );
+
+                        long triggerTime = reminderTime.getTimeInMillis();
+
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                            alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerTime, pendingIntent);
+                        } else {
+                            alarmManager.setExact(AlarmManager.RTC_WAKEUP, triggerTime, pendingIntent);
+                        }
+                        
+                        alarmsSet++;
+                    }
+                }
             }
 
-            Intent intent = new Intent(context, ReminderReceiver.class);
-            intent.putExtra("task_id", task.getId());
-            intent.putExtra("task_title", task.getTitle());
-            intent.putExtra("task_description", task.getDescription());
-
-            PendingIntent pendingIntent = PendingIntent.getBroadcast(
-                context,
-                task.getId(), // Use task ID as request code to make it unique
-                intent,
-                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
-            );
-
-            long triggerTime = reminderTime.getTimeInMillis();
-
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerTime, pendingIntent);
-            } else {
-                alarmManager.setExact(AlarmManager.RTC_WAKEUP, triggerTime, pendingIntent);
-            }
-
-            Log.d(TAG, "Reminder set for task " + task.getId() + " at " + task.getReminderTime());
+            Log.d(TAG, "Set " + alarmsSet + " daily reminders for task " + task.getId() + " until deadline: " + task.getDeadline());
         } catch (Exception e) {
-            Log.e(TAG, "Error setting reminder for task " + task.getId(), e);
+            Log.e(TAG, "Error setting reminders for task " + task.getId(), e);
         }
     }
 
     public void cancelReminder(int taskId) {
-        Intent intent = new Intent(context, ReminderReceiver.class);
-        PendingIntent pendingIntent = PendingIntent.getBroadcast(
-            context,
-            taskId,
-            intent,
-            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
-        );
+        // Cancel all possible reminders for this task
+        // We use up to 21 reminders per task (7 days * 3 times per day = 21 max reminders)
+        int baseAlarmId = taskId * 100;
+        
+        for (int i = 0; i < 25; i++) { // Extra buffer to ensure all are cancelled
+            Intent intent = new Intent(context, ReminderReceiver.class);
+            PendingIntent pendingIntent = PendingIntent.getBroadcast(
+                context,
+                baseAlarmId + i,
+                intent,
+                PendingIntent.FLAG_NO_CREATE | PendingIntent.FLAG_IMMUTABLE
+            );
 
-        alarmManager.cancel(pendingIntent);
-        Log.d(TAG, "Reminder cancelled for task: " + taskId);
+            if (pendingIntent != null) {
+                alarmManager.cancel(pendingIntent);
+            }
+        }
+        
+        Log.d(TAG, "All reminders cancelled for task: " + taskId);
     }
 
     public void updateReminder(Task task) {
@@ -84,6 +127,52 @@ public class ReminderAlarmManager {
         // Set new reminder if enabled
         if (task.isReminderEnabled()) {
             setReminder(task);
+        }
+    }
+    
+    // Test method - set immediate reminder for testing
+    public void setTestReminder(Task task, int hour, int minute) {
+        Log.d(TAG, "Setting test reminder for task " + task.getId() + " at " + hour + ":" + minute);
+        
+        try {
+            Calendar testTime = Calendar.getInstance();
+            testTime.set(Calendar.HOUR_OF_DAY, hour);
+            testTime.set(Calendar.MINUTE, minute);
+            testTime.set(Calendar.SECOND, 0);
+            testTime.set(Calendar.MILLISECOND, 0);
+            
+            // If the time has already passed today, set for tomorrow
+            Calendar now = Calendar.getInstance();
+            if (testTime.before(now)) {
+                testTime.add(Calendar.DAY_OF_YEAR, 1);
+            }
+
+            Intent intent = new Intent(context, ReminderReceiver.class);
+            intent.putExtra("task_id", task.getId());
+            intent.putExtra("task_title", task.getTitle());
+            intent.putExtra("task_description", task.getDescription());
+            intent.putExtra("reminder_type", "test_reminder");
+
+            PendingIntent pendingIntent = PendingIntent.getBroadcast(
+                context,
+                task.getId() * 1000, // Different ID for test reminders
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+            );
+
+            long triggerTime = testTime.getTimeInMillis();
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerTime, pendingIntent);
+            } else {
+                alarmManager.setExact(AlarmManager.RTC_WAKEUP, triggerTime, pendingIntent);
+            }
+
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault());
+            Log.d(TAG, "Test reminder set for " + sdf.format(testTime.getTime()));
+            
+        } catch (Exception e) {
+            Log.e(TAG, "Error setting test reminder", e);
         }
     }
 } 

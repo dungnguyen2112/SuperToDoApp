@@ -1,6 +1,7 @@
 package com.example.todolist;
 
 import android.content.Intent;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -15,6 +16,7 @@ import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
 import androidx.annotation.NonNull;
+import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
@@ -24,6 +26,8 @@ import androidx.core.view.WindowInsetsCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import java.sql.Time;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -53,6 +57,7 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
     private boolean isLoading = false;
     private boolean hasMoreData = true;
     private String currentFilterTopic = null;
+    private boolean initialLoadComplete = false;
 
     private ReminderService reminderService;
     private ReminderAlarmManager reminderAlarmManager;
@@ -60,6 +65,7 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
     private RecyclerView recyclerTasksDueNextWeek;
     private TaskAdapter tasksDueNextWeekAdapter;
 
+    @RequiresApi(api = Build.VERSION_CODES.O)
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         // Initialize theme before calling super.onCreate()
@@ -83,6 +89,48 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
         setupClickListeners();
         setupAddTaskToggle();
         loadInitialTasks();
+        
+        // Setup test reminder - long press on toolbar
+        findViewById(R.id.toolbar).setOnLongClickListener(v -> {
+            testReminder();
+            return true;
+        });
+        
+        // Debug: Single tap on title to test filtering
+        if (getSupportActionBar() != null) {
+            findViewById(R.id.toolbar).setOnClickListener(v -> {
+                debugTestFiltering();
+            });
+        }
+        
+        // Add a simple test: Long press Clear Filter button for instant test
+        buttonClearFilter.setOnLongClickListener(v -> {
+            android.util.Log.d("MainActivity", "Quick filter test triggered");
+            List<String> topics = databaseHelper.getAllTopics();
+            if (!topics.isEmpty()) {
+                String firstTopic = topics.get(0);
+                android.util.Log.d("MainActivity", "Quick test: Filtering by " + firstTopic);
+                currentFilterTopic = firstTopic;
+                applyFilterImmediately();
+                return true;
+            }
+            Toast.makeText(this, "No topics available for quick test", Toast.LENGTH_SHORT).show();
+            return true;
+        });
+        
+        // Normal click clears filter, but also test widget update
+        buttonClearFilter.setOnClickListener(v -> {
+            clearFilter();
+            // Also update widget when clearing filter
+            TaskWidgetProvider.updateAllWidgets(this);
+            Toast.makeText(this, "🔄 Filter cleared & widget updated!", Toast.LENGTH_SHORT).show();
+        });
+        
+        // Triple tap to cycle widget themes
+        buttonClearFilter.setOnLongClickListener(v -> {
+            showWidgetThemeDialog();
+            return true;
+        });
 
         // Move setupTopicFilter to the end and add safety check
         try {
@@ -106,6 +154,9 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
         recyclerTasksDueNextWeek.setLayoutManager(new LinearLayoutManager(this));
         recyclerTasksDueNextWeek.setAdapter(tasksDueNextWeekAdapter);
         loadTasksDueNextWeek();
+        
+        // Update widget when app starts
+        TaskWidgetProvider.updateAllWidgets(this);
     }
 
     private void initViews() {
@@ -153,7 +204,11 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
                 super.onScrolled(recyclerView, dx, dy);
 
                 LinearLayoutManager layoutManager = (LinearLayoutManager) recyclerView.getLayoutManager();
-                if (layoutManager != null && !isLoading && hasMoreData) {
+                
+                // Only enable pagination scrolling when NO filter is active
+                boolean isFiltering = (currentFilterTopic != null && !"All Topics".equals(currentFilterTopic));
+                
+                if (layoutManager != null && !isLoading && hasMoreData && !isFiltering) {
                     int visibleItemCount = layoutManager.getChildCount();
                     int totalItemCount = layoutManager.getItemCount();
                     int firstVisibleItemPosition = layoutManager.findFirstVisibleItemPosition();
@@ -163,6 +218,8 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
                         android.util.Log.d("MainActivity", "Triggering load more - visible: " + visibleItemCount + ", total: " + totalItemCount + ", first: " + firstVisibleItemPosition);
                         loadMoreTasks();
                     }
+                } else if (isFiltering) {
+                    android.util.Log.d("MainActivity", "Scroll ignored - filtering active");
                 }
             }
         });
@@ -239,11 +296,21 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
             }
             
             Toast.makeText(this, "Task added successfully", Toast.LENGTH_SHORT).show();
+            
+            // Update widget immediately when task is added
+            android.util.Log.d("MainActivity", "Triggering widget update after adding task");
+            TaskWidgetProvider.updateAllWidgets(this);
             clearInputFields();
             toggleAddTaskSection(); // Collapse after adding
-            resetPaginationAndLoad();
+            
+            // Refresh the task list immediately after adding
+            applyFilterImmediately();
+            
             setupTopicFilter();
             loadTasksDueNextWeek(); // Refresh the due next week list
+            
+            // Update widgets
+            TaskWidgetProvider.updateAllWidgets(this);
         } else {
             Toast.makeText(this, "Failed to add task", Toast.LENGTH_SHORT).show();
         }
@@ -257,11 +324,9 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
     }
 
     private void loadInitialTasks() {
-        currentPage = 0;
-        hasMoreData = true;
-        allTasks.clear();
-        taskAdapter.updateTasks(allTasks);
-        loadMoreTasks();
+        android.util.Log.d("MainActivity", "Loading initial tasks");
+        currentFilterTopic = null; // Reset filter on initial load
+        applyFilterImmediately();
     }
 
     private void loadMoreTasks() {
@@ -318,15 +383,80 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
                 taskAdapter.setLoading(false);
             }
 
-        }, 300); // Reduced to 300ms for faster loading
+        }, 300); // Standard delay for pagination
     }
-
-    private void resetPaginationAndLoad() {
+    
+    private void forceReloadTaskList() {
+        android.util.Log.d("MainActivity", "Force reloading task list");
+        initialLoadComplete = false;
         currentPage = 0;
         hasMoreData = true;
+        isLoading = false;
         allTasks.clear();
         taskAdapter.updateTasks(allTasks);
-        loadMoreTasks();
+        taskAdapter.setLoading(true);
+        loadFilteredTasksImmediately();
+    }
+    
+    private void applyFilterImmediately() {
+        android.util.Log.d("MainActivity", "Applying filter immediately: " + currentFilterTopic);
+        
+        // Stop any existing loading
+        isLoading = false;
+        
+        // Get filtered results directly from database
+        List<Task> filteredTasks;
+        
+        if (currentFilterTopic == null || "All Topics".equals(currentFilterTopic)) {
+            android.util.Log.d("MainActivity", "Loading all tasks (no filter)");
+            filteredTasks = databaseHelper.getAllTasks(PAGE_SIZE, 0);
+            hasMoreData = filteredTasks.size() >= PAGE_SIZE;
+            currentPage = 1;
+        } else {
+            android.util.Log.d("MainActivity", "Loading tasks with filter: " + currentFilterTopic);
+            filteredTasks = databaseHelper.getTasksByTopic(currentFilterTopic);
+            hasMoreData = false; // No pagination for filtered results
+            currentPage = 0;
+        }
+        
+        android.util.Log.d("MainActivity", "Found " + filteredTasks.size() + " tasks");
+        
+        // Update UI immediately on main thread
+        runOnUiThread(() -> {
+            android.util.Log.d("MainActivity", "Starting UI update...");
+            
+            // Clear existing data
+            int oldSize = allTasks.size();
+            allTasks.clear();
+            android.util.Log.d("MainActivity", "Cleared " + oldSize + " old tasks");
+            
+            // Add filtered results
+            allTasks.addAll(filteredTasks);
+            android.util.Log.d("MainActivity", "Added " + filteredTasks.size() + " new tasks");
+            
+            // Force adapter update
+            taskAdapter.updateTasks(allTasks);
+            taskAdapter.notifyDataSetChanged();
+            android.util.Log.d("MainActivity", "Adapter updated and notified");
+            
+            // Hide loading
+            taskAdapter.setLoading(false);
+            
+            // Mark as complete
+            initialLoadComplete = true;
+            
+            android.util.Log.d("MainActivity", "UI update completed with " + allTasks.size() + " tasks");
+            
+            // Show result message
+            //String message = currentFilterTopic == null ?
+            //    "✅ All tasks (" + allTasks.size() + ")" :
+            //    "🔍 " + currentFilterTopic + " (" + allTasks.size() + " tasks)";
+            //Toast.makeText(MainActivity.this, message, Toast.LENGTH_LONG).show();
+        });
+    }
+
+    private boolean isFilteringActive() {
+        return currentFilterTopic != null && !"All Topics".equals(currentFilterTopic);
     }
 
     private void setupTopicFilter() {
@@ -340,34 +470,114 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
         // Set selection to "All Topics" first without triggering listener
         spinnerTopicFilter.setSelection(0, false);
 
-        // Add listener after setting initial selection
-        spinnerTopicFilter.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
-            @Override
-            public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) {
-                String selectedTopic = (String) parent.getItemAtPosition(position);
-                // Only filter if it's not the initial setup or if it's actually different
-                if (currentFilterTopic == null && position == 0) {
-                    // Initial setup with "All Topics" - don't reload
-                    return;
+        // Add listener after a delay to ensure initial load is stable
+        new android.os.Handler().postDelayed(() -> {
+            spinnerTopicFilter.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
+                @Override
+                public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) {
+                    String selectedTopic = (String) parent.getItemAtPosition(position);
+                    
+                                         // Don't filter if initial load is not complete yet
+                     if (!initialLoadComplete) {
+                         android.util.Log.d("MainActivity", "Ignoring filter change - initial load not complete");
+                         return;
+                     }
+                     
+                     // Check if this is actually a different filter
+                     String newFilter = selectedTopic.equals("All Topics") ? null : selectedTopic;
+                     if ((currentFilterTopic == null && newFilter == null) || 
+                         (currentFilterTopic != null && currentFilterTopic.equals(newFilter))) {
+                         android.util.Log.d("MainActivity", "Filter unchanged - skipping");
+                         return;
+                     }
+                     
+                     android.util.Log.d("MainActivity", "Filter changed from '" + currentFilterTopic + "' to '" + selectedTopic + "'");
+                     filterTasksByTopic(selectedTopic);
                 }
-                android.util.Log.d("MainActivity", "Filter changed to: " + selectedTopic);
-                filterTasksByTopic(selectedTopic);
-            }
 
-            @Override
-            public void onNothingSelected(android.widget.AdapterView<?> parent) {}
-        });
+                @Override
+                public void onNothingSelected(android.widget.AdapterView<?> parent) {}
+            });
+                 }, 100); // Reduced delay to 100ms for better responsiveness
     }
 
     private void filterTasksByTopic(String topic) {
-        currentFilterTopic = topic;
-        resetPaginationAndLoad();
+        currentFilterTopic = topic.equals("All Topics") ? null : topic;
+        
+        android.util.Log.d("MainActivity", "Filtering by topic: " + currentFilterTopic);
+        
+        // Use completely separate filtering logic
+        applyFilterImmediately();
+    }
+    
+    private void loadFilteredTasksImmediately() {
+        if (isLoading) return;
+        
+        isLoading = true;
+        android.util.Log.d("MainActivity", "Loading filtered tasks immediately - filter: " + currentFilterTopic);
+        
+        // Use immediate execution for filtering - no delay
+        try {
+            List<Task> newTasks;
+            
+            if (currentFilterTopic == null || "All Topics".equals(currentFilterTopic)) {
+                // For "All Topics" or no filter, start with first page for pagination
+                newTasks = databaseHelper.getAllTasks(PAGE_SIZE, 0);
+                android.util.Log.d("MainActivity", "Loaded " + newTasks.size() + " tasks without filter (pagination mode)");
+                
+                // Check if we have fewer tasks than requested (means we reached the end)
+                if (newTasks.size() < PAGE_SIZE) {
+                    hasMoreData = false;
+                } else {
+                    hasMoreData = true; // More pages available
+                }
+                currentPage = 1; // Set to 1 since we loaded first page
+            } else {
+                // For topic filtering, load ALL matching results immediately (no pagination)
+                newTasks = databaseHelper.getTasksByTopic(currentFilterTopic);
+                android.util.Log.d("MainActivity", "Loaded ALL " + newTasks.size() + " tasks with filter: " + currentFilterTopic);
+                
+                // No more data needed since we loaded everything
+                hasMoreData = false;
+                currentPage = 0; // No pagination for filtered results
+            }
+
+            // Update UI with results on main thread
+            runOnUiThread(() -> {
+                allTasks.clear();
+                allTasks.addAll(newTasks);
+                taskAdapter.updateTasks(allTasks);
+                taskAdapter.notifyDataSetChanged(); // Force adapter refresh
+                
+                android.util.Log.d("MainActivity", "UI updated with " + allTasks.size() + " tasks");
+                
+                // Mark initial load as complete
+                initialLoadComplete = true;
+                android.util.Log.d("MainActivity", "Load completed successfully");
+            });
+
+        } catch (Exception e) {
+            android.util.Log.e("MainActivity", "Error loading tasks", e);
+            hasMoreData = false;
+            runOnUiThread(() -> {
+                initialLoadComplete = true;
+            });
+        } finally {
+            isLoading = false;
+            runOnUiThread(() -> {
+                taskAdapter.setLoading(false);
+            });
+        }
     }
 
     private void clearFilter() {
+        android.util.Log.d("MainActivity", "Clearing filter");
+        
         spinnerTopicFilter.setSelection(0);
         currentFilterTopic = null;
-        resetPaginationAndLoad();
+        
+        // Apply filter immediately (will load all tasks)
+        applyFilterImmediately();
     }
 
     // TaskAdapter.OnTaskClickListener implementation
@@ -399,8 +609,14 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
                     if (result > 0) {
                         taskAdapter.removeTask(task.getId());
                         Toast.makeText(this, "Task deleted successfully", Toast.LENGTH_SHORT).show();
+                    
+                    // Update widget immediately when task is deleted
+                    TaskWidgetProvider.updateAllWidgets(this);
                         setupTopicFilter(); // Refresh topic filter
                         loadTasksDueNextWeek(); // Refresh the due next week list
+
+                        // Update widget immediately after deleting task
+                        TaskWidgetProvider.updateAllWidgets(this);
                     } else {
                         Toast.makeText(this, "Failed to delete task", Toast.LENGTH_SHORT).show();
                     }
@@ -419,9 +635,26 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
         try {
             int result = databaseHelper.updateTask(task);
             if (result > 0) {
-                String message = task.isCompleted() ? "Task marked as completed" : "Task marked as incomplete";
-                Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+                            String message = task.isCompleted() ? "Task marked as completed" : "Task marked as incomplete";
+            
+            // Update widget immediately when task completion status changes
+            android.util.Log.d("MainActivity", "Triggering widget update after task status change");
+            TaskWidgetProvider.updateAllWidgets(this);
+            
+            Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
                 taskAdapter.updateTask(task);
+                
+                // Handle reminders based on task completion status
+                if (task.isCompleted()) {
+                    // Cancel all reminders when task is completed
+                    reminderAlarmManager.cancelReminder(task.getId());
+                } else if (task.isReminderEnabled()) {
+                    // Re-enable reminders if task is unmarked and has reminders enabled
+                    reminderAlarmManager.setReminder(task);
+                }
+
+                // Update widget immediately after status change
+                TaskWidgetProvider.updateAllWidgets(this);
             } else {
                 // Revert the change if update failed
                 task.setCompleted(!task.isCompleted());
@@ -457,6 +690,9 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
                 setupTopicFilter(); // Refresh topic filter
                 loadTasksDueNextWeek(); // Refresh the due next week list
                 Toast.makeText(this, "Task deleted successfully", Toast.LENGTH_SHORT).show();
+
+                // Update widget immediately after task deletion from detail activity
+                TaskWidgetProvider.updateAllWidgets(this);
             }
         } else if (data.getBooleanExtra("task_updated", false)) {
             // Task was updated in TaskDetailActivity
@@ -474,6 +710,9 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
                 taskAdapter.updateTask(updatedTask);
                 setupTopicFilter(); // Refresh topic filter in case topic changed
                 loadTasksDueNextWeek(); // Refresh the due next week list
+
+                // Update widget immediately after task update from detail activity
+                TaskWidgetProvider.updateAllWidgets(this);
             }
         }
     }
@@ -504,8 +743,86 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
             showRemovePinDialog();
             return true;
         }
+        
+        // Debug PIN status
+        if (id == android.R.id.home) {
+            PinManager pinManager = new PinManager(this);
+            boolean isPinSet = pinManager.isPinSet();
+            android.util.Log.d("MainActivity", "PIN Status Debug - PIN set: " + isPinSet);
+            Toast.makeText(this, "PIN Status: " + (isPinSet ? "SET" : "NOT SET"), Toast.LENGTH_LONG).show();
+            return true;
+        }
 
         return super.onOptionsItemSelected(item);
+    }
+    
+    @RequiresApi(api = Build.VERSION_CODES.O)
+    private void testReminder() {
+        // Create a test task for reminder testing
+        Task testTask = new Task("Test Reminder Task", "This is a test reminder to check if notifications work", "TEST");
+        testTask.setId(99999); // Use a high ID to avoid conflicts
+        testTask.setReminderEnabled(true);
+        testTask.setCompleted(false);
+
+        LocalDateTime now1 = LocalDateTime.now();
+        int hour1 = now1.getHour();
+        int minute1 = now1.getMinute();
+        
+        // Show dialog to choose test time
+        int finalHour = hour1;
+        int finalMinute = minute1;
+        new androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("Test Reminder")
+            .setMessage("Choose when to test the reminder:")
+            .setPositiveButton("Test", (dialog, which) -> {
+                reminderAlarmManager.setTestReminder(testTask, finalHour, finalMinute);
+                Toast.makeText(this, "Test reminder set for now! Check your notifications.", Toast.LENGTH_LONG).show();
+            })
+            .setNegativeButton("In 1 minute", (dialog, which) -> {
+                java.util.Calendar now = java.util.Calendar.getInstance();
+                now.add(java.util.Calendar.MINUTE, 1);
+                int hour = now.get(java.util.Calendar.HOUR_OF_DAY);
+                int minute = now.get(java.util.Calendar.MINUTE);
+                
+                reminderAlarmManager.setTestReminder(testTask, hour, minute);
+                Toast.makeText(this, "Test reminder set for " + hour + ":" + String.format("%02d", minute) + "! Check your notifications.", Toast.LENGTH_LONG).show();
+            })
+            .setNeutralButton("Cancel", null)
+            .show();
+        
+        android.util.Log.d("MainActivity", "Test reminder dialog shown");
+    }
+    
+    private void debugTestFiltering() {
+        android.util.Log.d("MainActivity", "Debug: Testing filtering");
+        
+        // Get all available topics for testing
+        List<String> topics = databaseHelper.getAllTopics();
+        
+        if (topics.isEmpty()) {
+            Toast.makeText(this, "No topics available for filtering test", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        // Create test dialog with available topics
+        String[] topicArray = topics.toArray(new String[0]);
+        
+        new androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("Debug: Test Filtering")
+            .setItems(topicArray, (dialog, which) -> {
+                String selectedTopic = topicArray[which];
+                android.util.Log.d("MainActivity", "Debug: Manually filtering by: " + selectedTopic);
+                
+                // Force filter manually
+                currentFilterTopic = selectedTopic;
+                applyFilterImmediately();
+            })
+            .setNegativeButton("Clear Filter", (dialog, which) -> {
+                android.util.Log.d("MainActivity", "Debug: Clearing filter");
+                currentFilterTopic = null;
+                applyFilterImmediately();
+            })
+            .show();
     }
 
     private void showThemeSelectionDialog() {
@@ -526,7 +843,11 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
 
     private void loadTasksDueNextWeek() {
         List<Task> tasksDueNextWeek = new ArrayList<>();
-        for (Task task : allTasks) {
+        
+        // Load ALL tasks from database, not just the ones currently loaded in pagination
+        List<Task> allTasksFromDb = databaseHelper.getAllTasks();
+        
+        for (Task task : allTasksFromDb) {
             if (task.getDeadline() != null && isWithinNextWeek(task.getDeadline())) {
                 tasksDueNextWeek.add(task);
             }
@@ -538,13 +859,28 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
         try {
             java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd");
             java.util.Date deadlineDate = sdf.parse(deadline);
-            java.util.Calendar calendar = java.util.Calendar.getInstance();
-            java.util.Date today = calendar.getTime();
-            calendar.add(java.util.Calendar.DAY_OF_YEAR, 7);
-            java.util.Date nextWeek = calendar.getTime();
-            return deadlineDate.after(today) && deadlineDate.before(nextWeek);
+            
+            // Get today at start of day (00:00:00)
+            java.util.Calendar todayCalendar = java.util.Calendar.getInstance();
+            todayCalendar.set(java.util.Calendar.HOUR_OF_DAY, 0);
+            todayCalendar.set(java.util.Calendar.MINUTE, 0);
+            todayCalendar.set(java.util.Calendar.SECOND, 0);
+            todayCalendar.set(java.util.Calendar.MILLISECOND, 0);
+            java.util.Date todayStart = todayCalendar.getTime();
+            
+            // Get next week at end of day (23:59:59)
+            java.util.Calendar nextWeekCalendar = java.util.Calendar.getInstance();
+            nextWeekCalendar.add(java.util.Calendar.DAY_OF_YEAR, 7);
+            nextWeekCalendar.set(java.util.Calendar.HOUR_OF_DAY, 23);
+            nextWeekCalendar.set(java.util.Calendar.MINUTE, 59);
+            nextWeekCalendar.set(java.util.Calendar.SECOND, 59);
+            nextWeekCalendar.set(java.util.Calendar.MILLISECOND, 999);
+            java.util.Date nextWeekEnd = nextWeekCalendar.getTime();
+            
+            // Include tasks from today to 7 days from now (inclusive)
+            return !deadlineDate.before(todayStart) && !deadlineDate.after(nextWeekEnd);
         } catch (java.text.ParseException e) {
-            e.printStackTrace();
+            android.util.Log.e("MainActivity", "Error parsing deadline date: " + deadline, e);
             return false;
         }
     }
@@ -614,5 +950,31 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
             .setNegativeButton("Cancel", null)
             .setIcon(android.R.drawable.ic_dialog_alert)
             .show();
+    }
+
+    private void showWidgetThemeDialog() {
+        String[] themes = {"🌙 Dark Premium", "🌊 Ocean Blue", "💜 Purple Gradient"};
+        new AlertDialog.Builder(this)
+            .setTitle("🎨 Choose Widget Theme")
+            .setItems(themes, (dialog, which) -> {
+                String selectedTheme = themes[which];
+                // Save theme preference and update widget layout
+                android.content.SharedPreferences prefs = getSharedPreferences("widget_prefs", MODE_PRIVATE);
+                prefs.edit().putInt("theme", which).apply();
+                
+                // Update all widgets with new theme
+                TaskWidgetProvider.updateAllWidgets(this);
+                Toast.makeText(this, "🎨 Applied: " + selectedTheme, Toast.LENGTH_SHORT).show();
+            })
+            .setNegativeButton("Cancel", null)
+            .show();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        
+        // Update widget when app comes to foreground  
+        TaskWidgetProvider.updateAllWidgets(this);
     }
 }

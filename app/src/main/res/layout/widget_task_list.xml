@@ -4,48 +4,62 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:padding="12dp"
-    android:background="@drawable/widget_background"
+    android:padding="16dp"
+    android:background="@drawable/widget_background_premium"
     android:clickable="true"
-    android:minHeight="80dp">
+    android:minHeight="120dp"
+    android:elevation="8dp">
 
     <TextView
         android:id="@+id/widget_title"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="Tasks tuần này"
-        android:textSize="16sp"
+        android:textSize="18sp"
         android:textStyle="bold"
         android:textColor="#FFFFFF"
         android:gravity="center"
-        android:layout_marginBottom="8dp"
-        android:fontFamily="sans-serif-medium" />
+        android:layout_marginBottom="12dp"
+        android:fontFamily="sans-serif-medium"
+        android:shadowColor="#80000000"
+        android:shadowDx="0"
+        android:shadowDy="1"
+        android:shadowRadius="3"
+        android:letterSpacing="0.02" />
 
     <TextView
         android:id="@+id/widget_count"
-        android:layout_width="match_parent"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="0 tasks"
-        android:textSize="13sp"
-        android:textColor="#CCFFFFFF"
+        android:textSize="12sp"
+        android:textColor="#FFFFFF"
         android:gravity="center"
-        android:layout_marginBottom="12dp"
-        android:background="#22FFFFFF"
-        android:padding="6dp"
-        android:fontFamily="sans-serif"
-        android:visibility="gone" />
+        android:layout_marginBottom="16dp"
+        android:layout_gravity="center"
+        android:background="@drawable/widget_count_badge"
+        android:paddingHorizontal="12dp"
+        android:paddingVertical="4dp"
+        android:fontFamily="sans-serif-medium"
+        android:visibility="gone"
+        android:textStyle="bold" />
 
     <TextView
         android:id="@+id/widget_task_text"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text=""
-        android:textSize="13sp"
-        android:textColor="#FFFFFF"
+        android:textSize="12sp"
+        android:textColor="#E0FFFFFF"
         android:gravity="start"
-        android:lineSpacingExtra="4dp"
+        android:lineSpacingExtra="3dp"
         android:fontFamily="sans-serif"
-        android:layout_marginBottom="8dp" />
+        android:layout_marginBottom="12dp"
+        android:maxLines="10"
+        android:ellipsize="end"
+        android:background="@drawable/widget_task_container"
+        android:padding="12dp"
+        android:textIsSelectable="false" />
 
     <TextView
         android:id="@+id/widget_empty_text"
@@ -90,10 +104,13 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="Cập nhật: --:--"
-        android:textSize="11sp"
-        android:textColor="#99FFFFFF"
-        android:gravity="end"
-        android:layout_marginTop="8dp"
-        android:fontFamily="sans-serif" />
+        android:textSize="10sp"
+        android:textColor="#80FFFFFF"
+        android:gravity="center"
+        android:layout_marginTop="12dp"
+        android:fontFamily="sans-serif"
+        android:textStyle="italic"
+        android:background="#11FFFFFF"
+        android:padding="6dp" />
 
 </LinearLayout>

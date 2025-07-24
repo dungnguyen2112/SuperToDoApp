@@ -22,10 +22,7 @@ public class EditTaskActivity extends AppCompatActivity {
     private ReminderAlarmManager reminderAlarmManager;
     private EditText editTitle, editDescription, editTopic;
     private CheckBox checkboxReminder;
-    private LinearLayout layoutReminderTime;
-    private MaterialButton buttonSelectTime;
     private Task currentTask;
-    private Calendar selectedReminderTime;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -56,10 +53,6 @@ public class EditTaskActivity extends AppCompatActivity {
         editDescription = findViewById(R.id.edit_description);
         editTopic = findViewById(R.id.edit_topic);
         checkboxReminder = findViewById(R.id.checkbox_reminder);
-        layoutReminderTime = findViewById(R.id.layout_reminder_time);
-        buttonSelectTime = findViewById(R.id.button_select_time);
-        
-        selectedReminderTime = Calendar.getInstance();
     }
 
     private void loadTaskData() {
@@ -77,20 +70,8 @@ public class EditTaskActivity extends AppCompatActivity {
                 editDescription.setText(currentTask.getDescription() != null ? currentTask.getDescription() : "");
                 editTopic.setText(currentTask.getTopic() != null ? currentTask.getTopic() : "");
                 
-                // Set reminder fields
+                // Set reminder checkbox - simplified UI
                 checkboxReminder.setChecked(currentTask.isReminderEnabled());
-                if (currentTask.isReminderEnabled() && currentTask.getReminderTime() != null) {
-                    layoutReminderTime.setVisibility(View.VISIBLE);
-                    try {
-                        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault());
-                        selectedReminderTime.setTime(sdf.parse(currentTask.getReminderTime()));
-                        updateReminderTimeButton();
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
-                } else {
-                    layoutReminderTime.setVisibility(View.GONE);
-                }
 
                 android.util.Log.d("EditTaskActivity", "Task loaded successfully with ID: " + currentTask.getId());
             } else {
@@ -109,20 +90,7 @@ public class EditTaskActivity extends AppCompatActivity {
         findViewById(R.id.button_save).setOnClickListener(v -> saveTask());
         findViewById(R.id.button_cancel).setOnClickListener(v -> showCancelConfirmation());
         
-        checkboxReminder.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            if (isChecked) {
-                layoutReminderTime.setVisibility(View.VISIBLE);
-                // Set default reminder time to 1 hour before current time if not set
-                if (buttonSelectTime.getText().toString().equals("Select Time")) {
-                    selectedReminderTime.add(Calendar.HOUR, 1);
-                    updateReminderTimeButton();
-                }
-            } else {
-                layoutReminderTime.setVisibility(View.GONE);
-            }
-        });
-        
-        buttonSelectTime.setOnClickListener(v -> showDateTimePickerDialog());
+        // No additional setup needed for reminder checkbox - just enable/disable automatic reminders
     }
 
     private void showCancelConfirmation() {
@@ -180,14 +148,8 @@ public class EditTaskActivity extends AppCompatActivity {
         currentTask.setDescription(description);
         currentTask.setTopic(topic.isEmpty() ? null : topic);
         
-        // Update reminder data
+        // Update reminder data - simplified (no specific time needed)
         currentTask.setReminderEnabled(checkboxReminder.isChecked());
-        if (checkboxReminder.isChecked()) {
-            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault());
-            currentTask.setReminderTime(sdf.format(selectedReminderTime.getTime()));
-        } else {
-            currentTask.setReminderTime(null);
-        }
 
         android.util.Log.d("EditTaskActivity", "Updating task with ID: " + currentTask.getId());
 
@@ -198,6 +160,10 @@ public class EditTaskActivity extends AppCompatActivity {
             if (result > 0) {
                 // Update alarm/reminder
                 reminderAlarmManager.updateReminder(currentTask);
+                
+                // Update widget immediately after task update
+                android.util.Log.d("EditTaskActivity", "Triggering widget update after task edit");
+                TaskWidgetProvider.updateAllWidgets(this);
                 
                 Toast.makeText(this, "Task updated successfully", Toast.LENGTH_SHORT).show();
 
@@ -223,52 +189,5 @@ public class EditTaskActivity extends AppCompatActivity {
         }
     }
     
-    private void showDateTimePickerDialog() {
-        Calendar currentTime = Calendar.getInstance();
-        
-        // Show date picker first
-        DatePickerDialog datePickerDialog = new DatePickerDialog(
-            this,
-            (view, year, month, dayOfMonth) -> {
-                selectedReminderTime.set(Calendar.YEAR, year);
-                selectedReminderTime.set(Calendar.MONTH, month);
-                selectedReminderTime.set(Calendar.DAY_OF_MONTH, dayOfMonth);
-                
-                // Then show time picker
-                showTimePickerDialog();
-            },
-            currentTime.get(Calendar.YEAR),
-            currentTime.get(Calendar.MONTH),
-            currentTime.get(Calendar.DAY_OF_MONTH)
-        );
-        
-        // Set minimum date to today
-        datePickerDialog.getDatePicker().setMinDate(currentTime.getTimeInMillis());
-        datePickerDialog.show();
-    }
-    
-    private void showTimePickerDialog() {
-        Calendar currentTime = Calendar.getInstance();
-        
-        TimePickerDialog timePickerDialog = new TimePickerDialog(
-            this,
-            (view, hourOfDay, minute) -> {
-                selectedReminderTime.set(Calendar.HOUR_OF_DAY, hourOfDay);
-                selectedReminderTime.set(Calendar.MINUTE, minute);
-                selectedReminderTime.set(Calendar.SECOND, 0);
-                
-                updateReminderTimeButton();
-            },
-            selectedReminderTime.get(Calendar.HOUR_OF_DAY),
-            selectedReminderTime.get(Calendar.MINUTE),
-            true
-        );
-        
-        timePickerDialog.show();
-    }
-    
-    private void updateReminderTimeButton() {
-        SimpleDateFormat sdf = new SimpleDateFormat("MMM dd, yyyy 'at' HH:mm", Locale.getDefault());
-        buttonSelectTime.setText(sdf.format(selectedReminderTime.getTime()));
-    }
+
 }

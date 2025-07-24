@@ -194,6 +194,18 @@ public class TaskDetailActivity extends AppCompatActivity {
                     String message = isChecked ? "Task marked as completed" : "Task marked as incomplete";
                     Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
 
+                    // Handle reminders based on task completion status
+                    if (isChecked) {
+                        // Cancel all reminders when task is completed
+                        reminderAlarmManager.cancelReminder(currentTask.getId());
+                    } else if (currentTask.isReminderEnabled()) {
+                        // Re-enable reminders if task is unmarked and has reminders enabled
+                        reminderAlarmManager.setReminder(currentTask);
+                    }
+
+                    // Update widget immediately when task status changes
+                    TaskWidgetProvider.updateAllWidgets(this);
+
                     // Send result back to MainActivity
                     setResultAndNotifyChange();
                 } else {
@@ -247,6 +259,9 @@ public class TaskDetailActivity extends AppCompatActivity {
             
             int result = databaseHelper.deleteTask(currentTask.getId());
             if (result > 0) {
+                // Update widget immediately after task deletion
+                TaskWidgetProvider.updateAllWidgets(this);
+                
                 Toast.makeText(this, "Task deleted successfully", Toast.LENGTH_SHORT).show();
 
                 // Send result back to MainActivity
