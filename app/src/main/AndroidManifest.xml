@@ -42,6 +42,12 @@
             android:exported="false"
             android:theme="@style/Theme.Todolist" />
 
+
+        <activity
+            android:name=".EditTaskActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Todolist" />
+
         <!-- PIN Entry Activity -->
         <activity
             android:name=".PinEntryActivity"

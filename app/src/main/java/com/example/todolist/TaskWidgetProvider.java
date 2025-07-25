@@ -57,7 +57,7 @@ public class TaskWidgetProvider extends AppWidgetProvider {
             applyWidgetTheme(context, views);
 
             try {
-                // Get tasks due this week
+                // Get tasks due this week - widget will resize dynamically based on content
                 DatabaseHelper dbHelper = new DatabaseHelper(context);
                 List<Task> allTasks = dbHelper.getAllTasks();
                 android.util.Log.d("TaskWidget", "Loaded " + allTasks.size() + " total tasks from database");
@@ -99,35 +99,38 @@ public class TaskWidgetProvider extends AppWidgetProvider {
                                 taskCount++;
                                 android.util.Log.d("TaskWidget", "Task " + taskCount + ": " + task.getTitle() + " - " + dateOnlyStr);
                                 
-                                if (taskCount <= 8) { // Show up to 8 tasks with compact format
-                                    // Compact format: title + date on same line
-                                    taskText.append("• ").append(task.getTitle());
+                                // Show only first 2 tasks in widget for cleaner look
+                                if (taskCount <= 2) {
+                                    // Balanced widget format: clean and proportional
+                                    String taskTitle = task.getTitle();
+                                    if (taskTitle.length() > 28) {
+                                        taskTitle = taskTitle.substring(0, 28) + "...";
+                                    }
                                     
-                                    // Add urgency emoji
+                                    // Clean format with icon and status
+                                    taskText.append("📌 ").append(taskTitle);
+                                    
+                                    // Add urgency indicator
                                     long daysLeft = (deadlineDate.getTime() - todayStart.getTime()) / (1000 * 60 * 60 * 24);
                                     if (daysLeft <= 0) {
-                                        taskText.append(" 🚨");
+                                        taskText.append(" 🔴");
                                     } else if (daysLeft <= 1) {
-                                        taskText.append(" ⚠️");
+                                        taskText.append(" 🟡");
                                     } else if (daysLeft <= 3) {
-                                        taskText.append(" ⏰");
+                                        taskText.append(" 🟠");
                                     }
                                     
-                                    // Date on same line
-                                    taskText.append(" (").append(displaySdf.format(deadlineDate)).append(")");
+                                    // Date on same line with proper spacing
+                                    taskText.append("   📅 ").append(displaySdf.format(deadlineDate));
                                     
-                                    // Topic if exists (shortened)
-                                    if (task.getTopic() != null && !task.getTopic().isEmpty()) {
-                                        String topic = task.getTopic();
-                                        if (topic.length() > 8) {
-                                            topic = topic.substring(0, 8) + "...";
-                                        }
-                                        taskText.append(" #").append(topic);
+                                    // Add proper spacing between tasks
+                                    if (taskCount < 2) {
+                                        taskText.append("\n\n");
+                                    } else {
+                                        taskText.append("\n");
                                     }
-                                    taskText.append("\n");
+                                    
                                     android.util.Log.d("TaskWidget", "Added task to display: " + task.getTitle());
-                                } else {
-                                    android.util.Log.d("TaskWidget", "Task beyond display limit: " + task.getTitle());
                                 }
                             } else {
                                 android.util.Log.d("TaskWidget", "Task filtered out - not in date range: " + task.getTitle() + " - " + dateOnlyStr);
@@ -151,20 +154,17 @@ public class TaskWidgetProvider extends AppWidgetProvider {
                 // Update widget content with better formatting
                 android.util.Log.d("TaskWidget", "Updating widget content - taskCount: " + taskCount);
                 if (taskCount > 0) {
-                    // Set title with emoji and count
-                    String titleEmoji = taskCount > 3 ? "🔥" : taskCount > 1 ? "📋" : "✨";
-                    String titleText = titleEmoji + " Tasks tuần này (" + taskCount + ")";
-                    views.setTextViewText(R.id.widget_title, titleText);
-                    android.util.Log.d("TaskWidget", "Set title: " + titleText);
+                    // Set title
+                    views.setTextViewText(R.id.widget_title, "Tuần này");
+                    views.setTextViewText(R.id.widget_subtitle, "Tasks sắp đến hạn");
+                    android.util.Log.d("TaskWidget", "Set title");
 
                     if (taskText.length() > 0) {
                         String taskListText = taskText.toString().trim();
-                        // Add spacing at end to prevent clipping
-                        taskListText += "\n ";
                         views.setTextViewText(R.id.widget_task_text, taskListText);
                         views.setViewVisibility(R.id.widget_task_text, View.VISIBLE);
                         views.setViewVisibility(R.id.widget_empty_container, View.GONE);
-                        android.util.Log.d("TaskWidget", "Set task list with " + taskListText.length() + " characters, " + taskCount + " tasks displayed");
+                        android.util.Log.d("TaskWidget", "Set task list with " + taskListText.length() + " characters, " + Math.min(taskCount, 2) + " tasks displayed");
                     } else {
                         views.setTextViewText(R.id.widget_task_text, "Đang tải tasks...");
                         views.setViewVisibility(R.id.widget_task_text, View.VISIBLE);
@@ -173,17 +173,29 @@ public class TaskWidgetProvider extends AppWidgetProvider {
                     }
 
                     // Show task count
-                    String countText = taskCount + " task" + (taskCount > 1 ? "s" : "");
-                    if (taskCount > 8) {
-                        countText += " (hiển thị 8)";
-                    }
+                    String countText = String.valueOf(taskCount);
                     views.setTextViewText(R.id.widget_count, countText);
                     views.setViewVisibility(R.id.widget_count, View.VISIBLE);
+                    
+                    // Add "View more" section if there are more than 2 tasks
+                    android.util.Log.d("TaskWidget", "Checking view more: taskCount = " + taskCount);
+                    if (taskCount > 2) {
+                        int remainingTasks = taskCount - 2;
+                        String viewMoreText = "Xem thêm " + remainingTasks + " task khác";
+                        views.setTextViewText(R.id.widget_view_more_text, viewMoreText);
+                        views.setViewVisibility(R.id.widget_view_more, View.VISIBLE);
+                        android.util.Log.d("TaskWidget", "Showing view more: " + viewMoreText);
+                    } else {
+                        views.setViewVisibility(R.id.widget_view_more, View.GONE);
+                        android.util.Log.d("TaskWidget", "Hiding view more - only " + taskCount + " tasks");
+                    }
                 } else {
-                    views.setTextViewText(R.id.widget_title, "🎯 Tasks tuần này");
+                    views.setTextViewText(R.id.widget_title, "Tuần này");
+                    views.setTextViewText(R.id.widget_subtitle, "Tasks sắp đến hạn");
                     views.setViewVisibility(R.id.widget_task_text, View.GONE);
+                    views.setViewVisibility(R.id.widget_view_more, View.GONE);
                     views.setViewVisibility(R.id.widget_empty_container, View.VISIBLE);
-                    views.setTextViewText(R.id.widget_empty_text, "🎉 Tuyệt vời! Không có task nào sắp đến hạn.\n\n✨ Bạn đã hoàn thành tất cả công việc trong tuần!");
+                    views.setTextViewText(R.id.widget_empty_text, "Không có task nào sắp đến hạn");
                     views.setViewVisibility(R.id.widget_count, View.GONE);
                     android.util.Log.d("TaskWidget", "Set empty state content");
                 }

@@ -314,7 +314,8 @@
                 <androidx.recyclerview.widget.RecyclerView
                     android:id="@+id/recycler_tasks_due_next_week"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
+                    android:layout_height="200dp"
+                    android:nestedScrollingEnabled="true"
                     android:scrollbars="vertical" />
 
             </LinearLayout>

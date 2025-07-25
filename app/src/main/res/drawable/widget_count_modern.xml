@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    
+    <!-- Modern accent gradient -->
+    <gradient
+        android:type="linear"
+        android:angle="90"
+        android:startColor="#FFFF6B6B"
+        android:endColor="#FFFF5722" />
+    
+    <!-- Fully rounded corners -->
+    <corners android:radius="16dp" />
+    
+</shape> 

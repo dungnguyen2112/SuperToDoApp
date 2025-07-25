@@ -151,7 +151,14 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
         tasksDueNextWeekAdapter = new TaskAdapter(this, new ArrayList<>());
         // Đảm bảo adapter này cũng có listener để click vào task hoạt động
         tasksDueNextWeekAdapter.setOnTaskClickListener(this);
-        recyclerTasksDueNextWeek.setLayoutManager(new LinearLayoutManager(this));
+        
+        // Setup layout manager with scroll capability for tasks due next week
+        LinearLayoutManager layoutManager = new LinearLayoutManager(this);
+        recyclerTasksDueNextWeek.setLayoutManager(layoutManager);
+        
+        // Enable nested scrolling for proper scrolling within fixed height
+        recyclerTasksDueNextWeek.setNestedScrollingEnabled(true);
+        
         recyclerTasksDueNextWeek.setAdapter(tasksDueNextWeekAdapter);
         loadTasksDueNextWeek();
         
@@ -846,12 +853,39 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
         
         // Load ALL tasks from database, not just the ones currently loaded in pagination
         List<Task> allTasksFromDb = databaseHelper.getAllTasks();
+        android.util.Log.d("MainActivity", "=== LOADING TASKS DUE NEXT WEEK ===");
+        android.util.Log.d("MainActivity", "Total tasks from DB: " + allTasksFromDb.size());
+        
+        int filteredCount = 0;
+        int completedCount = 0;
+        int noDeadlineCount = 0;
+        int dueLaterCount = 0;
         
         for (Task task : allTasksFromDb) {
-            if (task.getDeadline() != null && isWithinNextWeek(task.getDeadline())) {
-                tasksDueNextWeek.add(task);
+            if (task.getDeadline() != null) {
+                if (task.isCompleted()) {
+                    completedCount++;
+                    android.util.Log.d("MainActivity", "Task filtered - completed: " + task.getTitle());
+                } else if (isWithinNextWeek(task.getDeadline())) {
+                    tasksDueNextWeek.add(task);
+                    filteredCount++;
+                    android.util.Log.d("MainActivity", "Task added - due next week: " + task.getTitle() + " - " + task.getDeadline());
+                } else {
+                    dueLaterCount++;
+                    android.util.Log.d("MainActivity", "Task filtered - due later: " + task.getTitle() + " - " + task.getDeadline());
+                }
+            } else {
+                noDeadlineCount++;
+                android.util.Log.d("MainActivity", "Task filtered - no deadline: " + task.getTitle());
             }
         }
+        
+        android.util.Log.d("MainActivity", "Tasks due next week: " + filteredCount);
+        android.util.Log.d("MainActivity", "Tasks completed: " + completedCount);
+        android.util.Log.d("MainActivity", "Tasks no deadline: " + noDeadlineCount);
+        android.util.Log.d("MainActivity", "Tasks due later: " + dueLaterCount);
+        android.util.Log.d("MainActivity", "Setting adapter with " + tasksDueNextWeek.size() + " tasks");
+        
         tasksDueNextWeekAdapter.updateTasks(tasksDueNextWeek);
     }
 
