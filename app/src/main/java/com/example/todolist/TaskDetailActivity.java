@@ -186,6 +186,14 @@ public class TaskDetailActivity extends AppCompatActivity {
         checkboxCompleted.setOnCheckedChangeListener((buttonView, isChecked) -> {
             if (currentTask != null) {
                 currentTask.setCompleted(isChecked);
+                
+                // Set completed date when task is marked as completed
+                if (isChecked) {
+                    currentTask.setCompletedDate(java.text.DateFormat.getDateTimeInstance().format(new java.util.Date()));
+                } else {
+                    currentTask.setCompletedDate(null);
+                }
+                
                 updateStatusText();
 
                 // Update in database

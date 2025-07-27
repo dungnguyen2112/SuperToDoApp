@@ -640,6 +640,13 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
     @Override
     public void onTaskStatusChange(Task task) {
         try {
+            // Set completed date when task is marked as completed
+            if (task.isCompleted()) {
+                task.setCompletedDate(java.text.DateFormat.getDateTimeInstance().format(new java.util.Date()));
+            } else {
+                task.setCompletedDate(null);
+            }
+            
             int result = databaseHelper.updateTask(task);
             if (result > 0) {
                             String message = task.isCompleted() ? "Task marked as completed" : "Task marked as incomplete";
@@ -748,6 +755,13 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
 
         if (id == R.id.action_remove_pin) {
             showRemovePinDialog();
+            return true;
+        }
+
+        // Handle statistics
+        if (id == R.id.action_statistics) {
+            Intent intent = new Intent(this, StatisticsActivity.class);
+            startActivity(intent);
             return true;
         }
         

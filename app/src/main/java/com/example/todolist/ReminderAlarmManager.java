@@ -60,7 +60,7 @@ public class ReminderAlarmManager {
                 for (int hour : reminderHours) {
                     Calendar reminderTime = (Calendar) currentDay.clone();
                     reminderTime.set(Calendar.HOUR_OF_DAY, hour);
-                    reminderTime.set(Calendar.MINUTE, 0);
+                    reminderTime.set(Calendar.MINUTE, 43);
                     reminderTime.set(Calendar.SECOND, 0);
                     reminderTime.set(Calendar.MILLISECOND, 0);
 
@@ -143,9 +143,9 @@ public class ReminderAlarmManager {
             
             // If the time has already passed today, set for tomorrow
             Calendar now = Calendar.getInstance();
-            if (testTime.before(now)) {
-                testTime.add(Calendar.DAY_OF_YEAR, 1);
-            }
+//            if (testTime.before(now)) {
+//                testTime.add(Calendar.DAY_OF_YEAR, 1);
+//            }
 
             Intent intent = new Intent(context, ReminderReceiver.class);
             intent.putExtra("task_id", task.getId());

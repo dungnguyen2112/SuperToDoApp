@@ -10,6 +10,7 @@ public class Task {
     private String deadline;
     private boolean reminderEnabled;
     private String reminderTime; // Format: "yyyy-MM-dd HH:mm"
+    private String completedDate; // Date when task was completed
 
     public Task() {}
 
@@ -63,5 +64,13 @@ public class Task {
 
     public void setReminderTime(String reminderTime) {
         this.reminderTime = reminderTime;
+    }
+
+    public String getCompletedDate() {
+        return completedDate;
+    }
+
+    public void setCompletedDate(String completedDate) {
+        this.completedDate = completedDate;
     }
 }

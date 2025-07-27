@@ -20,4 +20,10 @@
         android:icon="@drawable/ic_lock"
         app:showAsAction="never" />
 
+    <item
+        android:id="@+id/action_statistics"
+        android:title="Thống kê hiệu suất"
+        android:icon="@android:drawable/ic_menu_sort_by_size"
+        app:showAsAction="never" />
+
 </menu>

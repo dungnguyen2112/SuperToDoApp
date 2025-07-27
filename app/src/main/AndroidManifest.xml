@@ -48,6 +48,12 @@
             android:exported="false"
             android:theme="@style/Theme.Todolist" />
 
+        <!-- Statistics Activity -->
+        <activity
+            android:name=".StatisticsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Todolist" />
+
         <!-- PIN Entry Activity -->
         <activity
             android:name=".PinEntryActivity"

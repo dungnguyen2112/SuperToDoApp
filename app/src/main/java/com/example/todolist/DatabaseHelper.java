@@ -11,10 +11,9 @@ import java.util.List;
 
 public class DatabaseHelper extends SQLiteOpenHelper {
     private static final String DATABASE_NAME = "todo.db";
-    private static final int DATABASE_VERSION = 3; // Increment version to trigger migration
+    private static final int DATABASE_VERSION = 4;
     private static final String TABLE_TASKS = "tasks";
 
-    // Columns
     private static final String COLUMN_ID = "id";
     private static final String COLUMN_TITLE = "title";
     private static final String COLUMN_DESCRIPTION = "description";
@@ -24,6 +23,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     private static final String COLUMN_DEADLINE = "deadline";
     private static final String COLUMN_REMINDER_ENABLED = "reminder_enabled";
     private static final String COLUMN_REMINDER_TIME = "reminder_time";
+    private static final String COLUMN_COMPLETED_DATE = "completed_date";
 
     public DatabaseHelper(Context context) {
         super(context, DATABASE_NAME, null, DATABASE_VERSION);
@@ -33,7 +33,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     private Task createTaskFromCursor(Cursor cursor) {
         Task task = new Task();
 
-        // Use getColumnIndexOrThrow for better error handling
+
         try {
             task.setId(cursor.getInt(cursor.getColumnIndexOrThrow(COLUMN_ID)));
             task.setTitle(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_TITLE)));
@@ -50,7 +50,6 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 task.setDeadline(null);
             }
 
-            // Handle reminder fields safely for backward compatibility
             int reminderEnabledIndex = cursor.getColumnIndex(COLUMN_REMINDER_ENABLED);
             int reminderTimeIndex = cursor.getColumnIndex(COLUMN_REMINDER_TIME);
 
@@ -66,8 +65,15 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 task.setReminderTime(null);
             }
 
+
+            int completedDateIndex = cursor.getColumnIndex(COLUMN_COMPLETED_DATE);
+            if (completedDateIndex != -1) {
+                task.setCompletedDate(cursor.getString(completedDateIndex));
+            } else {
+                task.setCompletedDate(null);
+            }
+
         } catch (IllegalArgumentException e) {
-            // Log the error for debugging
             android.util.Log.e("DatabaseHelper", "Error reading cursor data: " + e.getMessage());
             return null;
         }
@@ -86,7 +92,8 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 + COLUMN_CREATED_DATE + " TEXT,"
                 + COLUMN_DEADLINE + " TEXT,"
                 + COLUMN_REMINDER_ENABLED + " INTEGER DEFAULT 0,"
-                + COLUMN_REMINDER_TIME + " TEXT"
+                + COLUMN_REMINDER_TIME + " TEXT,"
+                + COLUMN_COMPLETED_DATE + " TEXT"
                 + ")";
         db.execSQL(createTable);
     }
@@ -102,6 +109,10 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             // Add deadline column to existing table
             db.execSQL("ALTER TABLE " + TABLE_TASKS + " ADD COLUMN " + COLUMN_DEADLINE + " TEXT");
         }
+        if (oldVersion < 4) {
+            // Add completed date column to existing table
+            db.execSQL("ALTER TABLE " + TABLE_TASKS + " ADD COLUMN " + COLUMN_COMPLETED_DATE + " TEXT");
+        }
     }
 
     // CRUD Operations
@@ -116,6 +127,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         values.put(COLUMN_DEADLINE, task.getDeadline());
         values.put(COLUMN_REMINDER_ENABLED, task.isReminderEnabled() ? 1 : 0);
         values.put(COLUMN_REMINDER_TIME, task.getReminderTime());
+        values.put(COLUMN_COMPLETED_DATE, task.getCompletedDate());
 
         long id = db.insert(TABLE_TASKS, null, values);
         db.close();
@@ -228,6 +240,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         values.put(COLUMN_DEADLINE, task.getDeadline());
         values.put(COLUMN_REMINDER_ENABLED, task.isReminderEnabled() ? 1 : 0);
         values.put(COLUMN_REMINDER_TIME, task.getReminderTime());
+        values.put(COLUMN_COMPLETED_DATE, task.getCompletedDate());
 
         int result = db.update(TABLE_TASKS, values, COLUMN_ID + " = ?",
                 new String[]{String.valueOf(task.getId())});
@@ -285,5 +298,91 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         cursor.close();
         db.close();
         return count;
+    }
+
+    // Statistics methods for StatisticsActivity
+    public List<Task> getCompletedTasks() {
+        List<Task> tasks = new ArrayList<>();
+        String selectQuery = "SELECT * FROM " + TABLE_TASKS + " WHERE " + COLUMN_IS_COMPLETED + " = 1 ORDER BY " + COLUMN_ID + " DESC";
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor cursor = db.rawQuery(selectQuery, null);
+
+        if (cursor.moveToFirst()) {
+            do {
+                Task task = createTaskFromCursor(cursor);
+                if (task != null) {
+                    tasks.add(task);
+                }
+            } while (cursor.moveToNext());
+        }
+        cursor.close();
+        db.close();
+        return tasks;
+    }
+
+    public List<Task> getTasksCompletedInPeriod(String startDate, String endDate) {
+        List<Task> tasks = new ArrayList<>();
+        String selectQuery = "SELECT * FROM " + TABLE_TASKS + 
+                " WHERE " + COLUMN_IS_COMPLETED + " = 1 AND " + 
+                COLUMN_CREATED_DATE + " >= ? AND " + COLUMN_CREATED_DATE + " <= ?";
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor cursor = db.rawQuery(selectQuery, new String[]{startDate, endDate});
+
+        if (cursor.moveToFirst()) {
+            do {
+                Task task = createTaskFromCursor(cursor);
+                if (task != null) {
+                    tasks.add(task);
+                }
+            } while (cursor.moveToNext());
+        }
+        cursor.close();
+        db.close();
+        return tasks;
+    }
+
+    public int getCompletedTasksCount() {
+        String countQuery = "SELECT COUNT(*) FROM " + TABLE_TASKS + " WHERE " + COLUMN_IS_COMPLETED + " = 1";
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor cursor = db.rawQuery(countQuery, null);
+        int count = 0;
+        if (cursor.moveToFirst()) {
+            count = cursor.getInt(0);
+        }
+        cursor.close();
+        db.close();
+        return count;
+    }
+
+    public int getPendingTasksCount() {
+        String countQuery = "SELECT COUNT(*) FROM " + TABLE_TASKS + " WHERE " + COLUMN_IS_COMPLETED + " = 0";
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor cursor = db.rawQuery(countQuery, null);
+        int count = 0;
+        if (cursor.moveToFirst()) {
+            count = cursor.getInt(0);
+        }
+        cursor.close();
+        db.close();
+        return count;
+    }
+
+    public List<Task> getTasksWithDeadlines() {
+        List<Task> tasks = new ArrayList<>();
+        String selectQuery = "SELECT * FROM " + TABLE_TASKS + " WHERE " + COLUMN_DEADLINE + " IS NOT NULL AND " + COLUMN_DEADLINE + " != ''";
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor cursor = db.rawQuery(selectQuery, null);
+
+        if (cursor.moveToFirst()) {
+            do {
+                Task task = createTaskFromCursor(cursor);
+                if (task != null) {
+                    tasks.add(task);
+                }
+            } while (cursor.moveToNext());
+        }
+        cursor.close();
+        db.close();
+        return tasks;
     }
 }
