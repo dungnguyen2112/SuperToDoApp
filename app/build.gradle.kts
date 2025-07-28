@@ -40,6 +40,9 @@ dependencies {
     implementation(libs.recyclerview)
     implementation(libs.cardview)
     
+    // FlexboxLayout for tags
+    implementation("com.google.android.flexbox:flexbox:3.0.0")
+    
     // No external chart library needed - using custom views
     
     testImplementation(libs.junit)

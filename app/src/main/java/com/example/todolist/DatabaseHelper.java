@@ -11,9 +11,12 @@ import java.util.List;
 
 public class DatabaseHelper extends SQLiteOpenHelper {
     private static final String DATABASE_NAME = "todo.db";
-    private static final int DATABASE_VERSION = 4;
+    private static final int DATABASE_VERSION = 5;
     private static final String TABLE_TASKS = "tasks";
+    private static final String TABLE_TAGS = "tags";
+    private static final String TABLE_TASK_TAGS = "task_tags";
 
+    // Tasks table columns
     private static final String COLUMN_ID = "id";
     private static final String COLUMN_TITLE = "title";
     private static final String COLUMN_DESCRIPTION = "description";
@@ -25,6 +28,14 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     private static final String COLUMN_REMINDER_TIME = "reminder_time";
     private static final String COLUMN_COMPLETED_DATE = "completed_date";
 
+    // Tags table columns
+    private static final String COLUMN_TAG_ID = "tag_id";
+    private static final String COLUMN_TAG_NAME = "tag_name";
+    private static final String COLUMN_TAG_COLOR = "tag_color";
+
+    // Task_Tags table columns
+    private static final String COLUMN_TASK_ID = "task_id";
+
     public DatabaseHelper(Context context) {
         super(context, DATABASE_NAME, null, DATABASE_VERSION);
     }
@@ -32,7 +43,6 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     @SuppressLint("Range")
     private Task createTaskFromCursor(Cursor cursor) {
         Task task = new Task();
-
 
         try {
             task.setId(cursor.getInt(cursor.getColumnIndexOrThrow(COLUMN_ID)));
@@ -65,13 +75,15 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 task.setReminderTime(null);
             }
 
-
             int completedDateIndex = cursor.getColumnIndex(COLUMN_COMPLETED_DATE);
             if (completedDateIndex != -1) {
                 task.setCompletedDate(cursor.getString(completedDateIndex));
             } else {
                 task.setCompletedDate(null);
             }
+
+            // Load tags for this task
+            task.setTags(getTagsForTask(task.getId()));
 
         } catch (IllegalArgumentException e) {
             android.util.Log.e("DatabaseHelper", "Error reading cursor data: " + e.getMessage());
@@ -81,9 +93,24 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         return task;
     }
 
+    @SuppressLint("Range")
+    private Tag createTagFromCursor(Cursor cursor) {
+        Tag tag = new Tag();
+        try {
+            tag.setId(cursor.getInt(cursor.getColumnIndexOrThrow(COLUMN_TAG_ID)));
+            tag.setName(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_TAG_NAME)));
+            tag.setColor(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_TAG_COLOR)));
+        } catch (IllegalArgumentException e) {
+            android.util.Log.e("DatabaseHelper", "Error reading tag cursor data: " + e.getMessage());
+            return null;
+        }
+        return tag;
+    }
+
     @Override
     public void onCreate(SQLiteDatabase db) {
-        String createTable = "CREATE TABLE " + TABLE_TASKS + "("
+        // Create tasks table
+        String createTasksTable = "CREATE TABLE " + TABLE_TASKS + "("
                 + COLUMN_ID + " INTEGER PRIMARY KEY AUTOINCREMENT,"
                 + COLUMN_TITLE + " TEXT NOT NULL,"
                 + COLUMN_DESCRIPTION + " TEXT,"
@@ -95,7 +122,46 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 + COLUMN_REMINDER_TIME + " TEXT,"
                 + COLUMN_COMPLETED_DATE + " TEXT"
                 + ")";
-        db.execSQL(createTable);
+        db.execSQL(createTasksTable);
+
+        // Create tags table
+        String createTagsTable = "CREATE TABLE " + TABLE_TAGS + "("
+                + COLUMN_TAG_ID + " INTEGER PRIMARY KEY AUTOINCREMENT,"
+                + COLUMN_TAG_NAME + " TEXT NOT NULL UNIQUE,"
+                + COLUMN_TAG_COLOR + " TEXT NOT NULL"
+                + ")";
+        db.execSQL(createTagsTable);
+
+        // Create task_tags junction table
+        String createTaskTagsTable = "CREATE TABLE " + TABLE_TASK_TAGS + "("
+                + COLUMN_TASK_ID + " INTEGER,"
+                + COLUMN_TAG_ID + " INTEGER,"
+                + "PRIMARY KEY (" + COLUMN_TASK_ID + ", " + COLUMN_TAG_ID + "),"
+                + "FOREIGN KEY (" + COLUMN_TASK_ID + ") REFERENCES " + TABLE_TASKS + "(" + COLUMN_ID + ") ON DELETE CASCADE,"
+                + "FOREIGN KEY (" + COLUMN_TAG_ID + ") REFERENCES " + TABLE_TAGS + "(" + COLUMN_TAG_ID + ") ON DELETE CASCADE"
+                + ")";
+        db.execSQL(createTaskTagsTable);
+
+        // Insert some default tags
+        insertDefaultTags(db);
+    }
+
+    private void insertDefaultTags(SQLiteDatabase db) {
+        String[] defaultTags = {
+                "Công việc|#2196F3",
+                "Cá nhân|#4CAF50", 
+                "Học tập|#FF9800",
+                "Giải trí|#9C27B0",
+                "Khẩn cấp|#F44336"
+        };
+
+        for (String tagData : defaultTags) {
+            String[] parts = tagData.split("\\|");
+            ContentValues values = new ContentValues();
+            values.put(COLUMN_TAG_NAME, parts[0]);
+            values.put(COLUMN_TAG_COLOR, parts[1]);
+            db.insert(TABLE_TAGS, null, values);
+        }
     }
 
     @Override
@@ -113,9 +179,30 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             // Add completed date column to existing table
             db.execSQL("ALTER TABLE " + TABLE_TASKS + " ADD COLUMN " + COLUMN_COMPLETED_DATE + " TEXT");
         }
+        if (oldVersion < 5) {
+            // Create tags and task_tags tables
+            String createTagsTable = "CREATE TABLE " + TABLE_TAGS + "("
+                    + COLUMN_TAG_ID + " INTEGER PRIMARY KEY AUTOINCREMENT,"
+                    + COLUMN_TAG_NAME + " TEXT NOT NULL UNIQUE,"
+                    + COLUMN_TAG_COLOR + " TEXT NOT NULL"
+                    + ")";
+            db.execSQL(createTagsTable);
+
+            String createTaskTagsTable = "CREATE TABLE " + TABLE_TASK_TAGS + "("
+                    + COLUMN_TASK_ID + " INTEGER,"
+                    + COLUMN_TAG_ID + " INTEGER,"
+                    + "PRIMARY KEY (" + COLUMN_TASK_ID + ", " + COLUMN_TAG_ID + "),"
+                    + "FOREIGN KEY (" + COLUMN_TASK_ID + ") REFERENCES " + TABLE_TASKS + "(" + COLUMN_ID + ") ON DELETE CASCADE,"
+                    + "FOREIGN KEY (" + COLUMN_TAG_ID + ") REFERENCES " + TABLE_TAGS + "(" + COLUMN_TAG_ID + ") ON DELETE CASCADE"
+                    + ")";
+            db.execSQL(createTaskTagsTable);
+
+            // Insert default tags
+            insertDefaultTags(db);
+        }
     }
 
-    // CRUD Operations
+    // CRUD Operations for Tasks
     public long addTask(Task task) {
         SQLiteDatabase db = this.getWritableDatabase();
         ContentValues values = new ContentValues();
@@ -130,6 +217,14 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         values.put(COLUMN_COMPLETED_DATE, task.getCompletedDate());
 
         long id = db.insert(TABLE_TASKS, null, values);
+        
+        // Add tags if task has any
+        if (task.getTags() != null && !task.getTags().isEmpty()) {
+            for (Tag tag : task.getTags()) {
+                addTaskTag((int)id, tag.getId());
+            }
+        }
+        
         db.close();
         return id;
     }
@@ -246,6 +341,11 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 new String[]{String.valueOf(task.getId())});
 
         android.util.Log.d("DatabaseHelper", "Update query result: " + result + " rows affected");
+
+        // Update tags for this task
+        if (result > 0) {
+            updateTaskTags(task.getId(), task.getTags());
+        }
 
         db.close();
         return result;
@@ -384,5 +484,163 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         cursor.close();
         db.close();
         return tasks;
+    }
+
+    // CRUD Operations for Tags
+    public long addTag(Tag tag) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        ContentValues values = new ContentValues();
+        values.put(COLUMN_TAG_NAME, tag.getName());
+        values.put(COLUMN_TAG_COLOR, tag.getColor());
+        long id = db.insert(TABLE_TAGS, null, values);
+        db.close();
+        return id;
+    }
+
+    public Tag getTagById(int tagId) {
+        SQLiteDatabase db = this.getReadableDatabase();
+        String selectQuery = "SELECT * FROM " + TABLE_TAGS + " WHERE " + COLUMN_TAG_ID + " = ?";
+        Cursor cursor = db.rawQuery(selectQuery, new String[]{String.valueOf(tagId)});
+
+        Tag tag = null;
+        if (cursor.moveToFirst()) {
+            tag = createTagFromCursor(cursor);
+        }
+
+        cursor.close();
+        db.close();
+        return tag;
+    }
+
+    public List<Tag> getAllTags() {
+        List<Tag> tags = new ArrayList<>();
+        String selectQuery = "SELECT * FROM " + TABLE_TAGS + " ORDER BY " + COLUMN_TAG_NAME;
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor cursor = db.rawQuery(selectQuery, null);
+
+        if (cursor.moveToFirst()) {
+            do {
+                Tag tag = createTagFromCursor(cursor);
+                if (tag != null) {
+                    tags.add(tag);
+                }
+            } while (cursor.moveToNext());
+        }
+        cursor.close();
+        db.close();
+        return tags;
+    }
+
+    public int updateTag(Tag tag) {
+        android.util.Log.d("DatabaseHelper", "Updating tag with ID: " + tag.getId());
+        android.util.Log.d("DatabaseHelper", "New name: " + tag.getName());
+        android.util.Log.d("DatabaseHelper", "New color: " + tag.getColor());
+
+        SQLiteDatabase db = this.getWritableDatabase();
+        ContentValues values = new ContentValues();
+        values.put(COLUMN_TAG_NAME, tag.getName());
+        values.put(COLUMN_TAG_COLOR, tag.getColor());
+
+        int result = db.update(TABLE_TAGS, values, COLUMN_TAG_ID + " = ?",
+                new String[]{String.valueOf(tag.getId())});
+
+        android.util.Log.d("DatabaseHelper", "Update query result: " + result + " rows affected");
+
+        db.close();
+        return result;
+    }
+
+    public int deleteTag(int tagId) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        db.delete(TABLE_TAGS, COLUMN_TAG_ID + " = ?", new String[]{String.valueOf(tagId)});
+        db.close();
+        return tagId;
+    }
+
+    // CRUD Operations for Task_Tags
+    public void addTaskTag(int taskId, int tagId) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        ContentValues values = new ContentValues();
+        values.put(COLUMN_TASK_ID, taskId);
+        values.put(COLUMN_TAG_ID, tagId);
+        db.insert(TABLE_TASK_TAGS, null, values);
+        db.close();
+    }
+
+    public void removeTaskTag(int taskId, int tagId) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        db.delete(TABLE_TASK_TAGS, COLUMN_TASK_ID + " = ? AND " + COLUMN_TAG_ID + " = ?", new String[]{String.valueOf(taskId), String.valueOf(tagId)});
+        db.close();
+    }
+
+    public List<Tag> getTagsForTask(int taskId) {
+        List<Tag> tags = new ArrayList<>();
+        String selectQuery = "SELECT t.* FROM " + TABLE_TAGS + " t JOIN " + TABLE_TASK_TAGS + " tt ON t." + COLUMN_TAG_ID + " = tt." + COLUMN_TAG_ID + " WHERE tt." + COLUMN_TASK_ID + " = ?";
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor cursor = db.rawQuery(selectQuery, new String[]{String.valueOf(taskId)});
+
+        if (cursor.moveToFirst()) {
+            do {
+                Tag tag = createTagFromCursor(cursor);
+                if (tag != null) {
+                    tags.add(tag);
+                }
+            } while (cursor.moveToNext());
+        }
+        cursor.close();
+        db.close();
+        return tags;
+    }
+
+    // Helper method to update tags for a task
+    public void updateTaskTags(int taskId, List<Tag> newTags) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        
+        // Remove all existing tags for this task
+        db.delete(TABLE_TASK_TAGS, COLUMN_TASK_ID + " = ?", new String[]{String.valueOf(taskId)});
+        
+        // Add new tags
+        if (newTags != null && !newTags.isEmpty()) {
+            for (Tag tag : newTags) {
+                ContentValues values = new ContentValues();
+                values.put(COLUMN_TASK_ID, taskId);
+                values.put(COLUMN_TAG_ID, tag.getId());
+                db.insert(TABLE_TASK_TAGS, null, values);
+            }
+        }
+        
+        db.close();
+    }
+
+    // Helper method to check if tag name already exists
+    public boolean isTagNameExists(String tagName) {
+        SQLiteDatabase db = this.getReadableDatabase();
+        String selectQuery = "SELECT COUNT(*) FROM " + TABLE_TAGS + " WHERE " + COLUMN_TAG_NAME + " = ?";
+        Cursor cursor = db.rawQuery(selectQuery, new String[]{tagName});
+        
+        int count = 0;
+        if (cursor.moveToFirst()) {
+            count = cursor.getInt(0);
+        }
+        cursor.close();
+        db.close();
+        
+        return count > 0;
+    }
+
+    // Get tag by name
+    public Tag getTagByName(String tagName) {
+        SQLiteDatabase db = this.getReadableDatabase();
+        String selectQuery = "SELECT * FROM " + TABLE_TAGS + " WHERE " + COLUMN_TAG_NAME + " = ?";
+        Cursor cursor = db.rawQuery(selectQuery, new String[]{tagName});
+
+        Tag tag = null;
+        if (cursor.moveToFirst()) {
+            tag = createTagFromCursor(cursor);
+        }
+
+        cursor.close();
+        db.close();
+        return tag;
     }
 }

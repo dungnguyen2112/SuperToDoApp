@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:padding="8dp"
+    android:background="?android:attr/selectableItemBackground"
+    android:clickable="true"
+    android:focusable="true">
+
+    <View
+        android:id="@+id/viewColorSample"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:background="@drawable/color_circle_background" />
+
+    <!-- Selected indicator -->
+    <ImageView
+        android:id="@+id/ivColorSelected"
+        android:layout_width="20dp"
+        android:layout_height="20dp"
+        android:layout_marginTop="4dp"
+        android:src="@drawable/ic_check_small"
+        android:visibility="gone"
+        android:tint="?android:attr/textColorPrimary" />
+
+</LinearLayout> 

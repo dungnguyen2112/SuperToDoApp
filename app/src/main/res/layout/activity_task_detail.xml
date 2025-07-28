@@ -141,6 +141,46 @@
 
             </androidx.cardview.widget.CardView>
 
+            <!-- Tags Card -->
+            <androidx.cardview.widget.CardView
+                android:id="@+id/card_tags"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="6dp"
+                app:cardBackgroundColor="?attr/colorSurface"
+                android:visibility="gone">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="20dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Tags"
+                        android:textSize="14sp"
+                        android:textColor="?android:attr/textColorSecondary"
+                        android:textStyle="bold"
+                        android:layout_marginBottom="12dp"
+                        android:drawableStart="@android:drawable/ic_menu_agenda"
+                        android:drawablePadding="8dp" />
+
+                    <com.google.android.flexbox.FlexboxLayout
+                        android:id="@+id/flexboxTags"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        app:flexWrap="wrap"
+                        app:alignItems="flex_start"
+                        app:justifyContent="flex_start" />
+
+                </LinearLayout>
+
+            </androidx.cardview.widget.CardView>
+
             <!-- Deadline Card -->
             <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"

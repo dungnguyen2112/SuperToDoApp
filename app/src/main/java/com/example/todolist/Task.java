@@ -1,5 +1,8 @@
 package com.example.todolist;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class Task {
     private int id;
     private String title;
@@ -11,8 +14,11 @@ public class Task {
     private boolean reminderEnabled;
     private String reminderTime; // Format: "yyyy-MM-dd HH:mm"
     private String completedDate; // Date when task was completed
+    private List<Tag> tags; // List of tags associated with this task
 
-    public Task() {}
+    public Task() {
+        this.tags = new ArrayList<>();
+    }
 
     public Task(String title, String description, String topic) {
         this.title = title;
@@ -21,6 +27,7 @@ public class Task {
         this.isCompleted = false;
         this.reminderEnabled = false;
         this.createdDate = java.text.DateFormat.getDateTimeInstance().format(new java.util.Date());
+        this.tags = new ArrayList<>();
     }
 
     // Getters and Setters
@@ -72,5 +79,32 @@ public class Task {
 
     public void setCompletedDate(String completedDate) {
         this.completedDate = completedDate;
+    }
+
+    public List<Tag> getTags() {
+        return tags;
+    }
+
+    public void setTags(List<Tag> tags) {
+        this.tags = tags != null ? tags : new ArrayList<>();
+    }
+
+    public void addTag(Tag tag) {
+        if (this.tags == null) {
+            this.tags = new ArrayList<>();
+        }
+        if (!this.tags.contains(tag)) {
+            this.tags.add(tag);
+        }
+    }
+
+    public void removeTag(Tag tag) {
+        if (this.tags != null) {
+            this.tags.remove(tag);
+        }
+    }
+
+    public boolean hasTag(Tag tag) {
+        return this.tags != null && this.tags.contains(tag);
     }
 }

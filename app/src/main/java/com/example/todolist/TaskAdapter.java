@@ -1,6 +1,7 @@
 package com.example.todolist;
 
 import android.content.Context;
+import android.graphics.Color;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -10,6 +11,7 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
+import com.google.android.flexbox.FlexboxLayout;
 import java.util.List;
 
 public class TaskAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
@@ -131,6 +133,9 @@ public class TaskAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                 taskHolder.textTopic.setVisibility(View.GONE);
             }
 
+            // Display tags
+            displayTaskTags(taskHolder, task);
+
             // Set checkbox state without triggering listener
             taskHolder.checkboxCompleted.setOnCheckedChangeListener(null);
             taskHolder.checkboxCompleted.setChecked(task.isCompleted());
@@ -159,10 +164,54 @@ public class TaskAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         // Loading items don't need binding
     }
 
+    private void displayTaskTags(TaskViewHolder holder, Task task) {
+        holder.flexboxTags.removeAllViews();
+
+        if (task.getTags() != null && !task.getTags().isEmpty()) {
+            holder.flexboxTags.setVisibility(View.VISIBLE);
+
+            // Limit to first 3 tags to avoid cluttering the UI
+            int maxTagsToShow = Math.min(task.getTags().size(), 3);
+            
+            for (int i = 0; i < maxTagsToShow; i++) {
+                Tag tag = task.getTags().get(i);
+                View tagChip = LayoutInflater.from(context).inflate(R.layout.item_tag_chip, holder.flexboxTags, false);
+                
+                View colorDot = tagChip.findViewById(R.id.viewTagColorDot);
+                TextView tagName = tagChip.findViewById(R.id.tvTagChipName);
+                View removeButton = tagChip.findViewById(R.id.ivRemoveTag);
+
+                try {
+                    colorDot.setBackgroundColor(Color.parseColor(tag.getColor()));
+                } catch (Exception e) {
+                    colorDot.setBackgroundColor(Color.GRAY);
+                }
+                
+                tagName.setText(tag.getName());
+                removeButton.setVisibility(View.GONE); // Don't show remove button in list view
+
+                holder.flexboxTags.addView(tagChip);
+            }
+
+            // Show "+N more" if there are more tags
+            if (task.getTags().size() > maxTagsToShow) {
+                TextView moreText = new TextView(context);
+                moreText.setText("+" + (task.getTags().size() - maxTagsToShow) + " more");
+                moreText.setTextSize(10);
+                moreText.setTextColor(Color.GRAY);
+                moreText.setPadding(8, 4, 8, 4);
+                holder.flexboxTags.addView(moreText);
+            }
+        } else {
+            holder.flexboxTags.setVisibility(View.GONE);
+        }
+    }
+
     static class TaskViewHolder extends RecyclerView.ViewHolder {
         TextView textTitle, textDescription, textDate, textTopic;
         CheckBox checkboxCompleted;
         ImageButton buttonDelete;
+        FlexboxLayout flexboxTags;
 
         TaskViewHolder(@NonNull View itemView) {
             super(itemView);
@@ -172,6 +221,7 @@ public class TaskAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             textTopic = itemView.findViewById(R.id.text_topic);
             checkboxCompleted = itemView.findViewById(R.id.checkbox_completed);
             buttonDelete = itemView.findViewById(R.id.button_delete);
+            flexboxTags = itemView.findViewById(R.id.flexboxTaskTags);
         }
     }
 

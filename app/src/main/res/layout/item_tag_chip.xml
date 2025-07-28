@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:background="@drawable/tag_chip_background"
+    android:padding="8dp"
+    android:layout_margin="4dp"
+    android:clickable="true"
+    android:focusable="true">
+
+    <!-- Tag Color Dot -->
+    <View
+        android:id="@+id/viewTagColorDot"
+        android:layout_width="12dp"
+        android:layout_height="12dp"
+        android:layout_marginEnd="6dp"
+        android:background="@drawable/circle_background" />
+
+    <!-- Tag Name -->
+    <TextView
+        android:id="@+id/tvTagChipName"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Tag"
+        android:textSize="12sp"
+        android:textColor="?android:attr/textColorPrimary"
+        android:textStyle="normal"
+        android:maxLines="1"
+        android:ellipsize="end" />
+
+    <!-- Close Button (optional, for removable chips) -->
+    <ImageView
+        android:id="@+id/ivRemoveTag"
+        android:layout_width="16dp"
+        android:layout_height="16dp"
+        android:layout_marginStart="6dp"
+        android:src="@drawable/ic_close_small"
+        android:contentDescription="Remove Tag"
+        android:visibility="gone"
+        android:scaleType="centerInside"
+        android:tint="?android:attr/textColorSecondary" />
+
+</LinearLayout> 

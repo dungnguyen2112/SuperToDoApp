@@ -128,6 +128,60 @@
 
                     </com.google.android.material.textfield.TextInputLayout>
 
+                    <!-- Tags Section -->
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Tags"
+                        android:textSize="16sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/text_primary"
+                        android:layout_marginBottom="12dp"
+                        android:drawableStart="@android:drawable/ic_menu_agenda"
+                        android:drawablePadding="8dp"
+                        android:gravity="center_vertical" />
+
+                    <!-- Selected Tags Container -->
+                    <com.google.android.material.card.MaterialCardView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="12dp"
+                        app:cardCornerRadius="12dp"
+                        app:cardBackgroundColor="?android:attr/colorBackground"
+                        app:strokeColor="@color/primary_blue"
+                        app:strokeWidth="1dp">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:padding="12dp">
+
+                            <!-- Selected Tags -->
+                            <com.google.android.flexbox.FlexboxLayout
+                                android:id="@+id/flexboxSelectedTags"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginBottom="8dp"
+                                app:flexWrap="wrap"
+                                app:alignItems="flex_start"
+                                app:justifyContent="flex_start" />
+
+                            <!-- Add Tags Button -->
+                            <Button
+                                android:id="@+id/btnSelectTags"
+                                android:layout_width="wrap_content"
+                                android:layout_height="36dp"
+                                android:text="+ Chọn Tags"
+                                android:textSize="14sp"
+                                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                                app:strokeColor="@color/primary_blue"
+                                app:cornerRadius="18dp" />
+
+                        </LinearLayout>
+
+                    </com.google.android.material.card.MaterialCardView>
+
                     <!-- Reminder Section -->
                     <TextView
                         android:layout_width="wrap_content"

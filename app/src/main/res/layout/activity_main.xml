@@ -23,6 +23,209 @@
         android:minHeight="?attr/actionBarSize"
         android:elevation="8dp" />
 
+    <!-- Tag Filter Section -->
+    <com.google.android.material.card.MaterialCardView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="8dp"
+        app:cardCornerRadius="12dp"
+        app:cardElevation="4dp"
+        app:strokeWidth="0dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <!-- Filter Header with Toggle -->
+            <LinearLayout
+                android:id="@+id/layout_tag_filter_header"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:padding="16dp"
+                android:gravity="center_vertical"
+                android:background="?android:attr/selectableItemBackground"
+                android:clickable="true"
+                android:focusable="true">
+
+                <ImageView
+                    android:id="@+id/icon_tag_filter_toggle"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_marginEnd="12dp"
+                    android:src="@drawable/ic_expand_more"
+                    android:tint="?android:attr/textColorSecondary"
+                    android:rotation="0" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Lọc &amp; Tìm kiếm"
+                        android:textSize="16sp"
+                        android:textStyle="bold"
+                        android:textColor="?android:attr/textColorPrimary" />
+
+                    <TextView
+                        android:id="@+id/tvTagFilterHint"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Nhấn để mở rộng"
+                        android:textSize="12sp"
+                        android:textColor="?android:attr/textColorSecondary"
+                        android:alpha="0.7" />
+
+                </LinearLayout>
+
+                <Button
+                    android:id="@+id/btnClearFilter"
+                    android:layout_width="wrap_content"
+                    android:layout_height="40dp"
+                    android:text="Xóa lọc"
+                    android:textSize="13sp"
+                    android:visibility="gone"
+                    android:background="@drawable/button_outline"
+                    android:textColor="?attr/colorPrimary"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="12dp"
+                    android:paddingTop="8dp"
+                    android:paddingBottom="8dp"
+                    android:minWidth="72dp" />
+
+            </LinearLayout>
+
+            <!-- Filter Content (Collapsible) -->
+            <ScrollView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:fillViewport="true"
+                android:scrollbars="vertical"
+                android:fadeScrollbars="false">
+
+                <LinearLayout
+                    android:id="@+id/layout_tag_filter_content"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="16dp"
+                    android:paddingBottom="16dp"
+                    android:visibility="gone">
+
+                <!-- Filter Type Selector -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginBottom="16dp"
+                    android:background="@drawable/button_outline"
+                    android:padding="2dp">
+
+                    <Button
+                        android:id="@+id/btnFilterByTopic"
+                        android:layout_width="0dp"
+                        android:layout_height="40dp"
+                        android:layout_weight="1"
+                        android:text="Theo chủ đề"
+                        android:textSize="14sp"
+                        android:textAllCaps="false"
+                        android:background="@drawable/filter_tab_background"
+                        android:textColor="?attr/colorPrimary" />
+
+                    <Button
+                        android:id="@+id/btnFilterByTag"
+                        android:layout_width="0dp"
+                        android:layout_height="40dp"
+                        android:layout_weight="1"
+                        android:text="Theo tag"
+                        android:textSize="14sp"
+                        android:textAllCaps="false"
+                        android:background="@drawable/filter_tab_background"
+                        android:textColor="?android:attr/textColorSecondary" />
+
+                </LinearLayout>
+
+                <!-- Topic Filter Section -->
+                <LinearLayout
+                    android:id="@+id/layoutTopicFilter"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginBottom="12dp"
+                    android:visibility="visible">
+
+                    <Spinner
+                        android:id="@+id/spinnerUnifiedTopicFilter"
+                        android:layout_width="0dp"
+                        android:layout_height="48dp"
+                        android:layout_weight="1"
+                        android:layout_marginEnd="12dp"
+                        android:gravity="center_vertical|start"
+                        android:paddingStart="12dp"
+                        android:paddingEnd="8dp" />
+
+                    <Button
+                        android:id="@+id/btnClearTopicFilter"
+                        android:layout_width="wrap_content"
+                        android:layout_height="40dp"
+                        android:text="Xóa lọc"
+                        android:textSize="13sp"
+                        android:background="@drawable/button_outline"
+                        android:textColor="?attr/colorPrimary"
+                        android:paddingStart="12dp"
+                        android:paddingEnd="12dp"
+                        android:paddingTop="8dp"
+                        android:paddingBottom="8dp"
+                        android:minWidth="72dp" />
+
+                </LinearLayout>
+
+                <!-- Tag Filter Section -->
+                <LinearLayout
+                    android:id="@+id/layoutTagFilter"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:visibility="gone">
+
+                    <!-- Selected Filter Tag Display -->
+                    <com.google.android.flexbox.FlexboxLayout
+                        android:id="@+id/flexboxFilterTags"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        app:flexWrap="wrap"
+                        app:alignItems="center"
+                        app:justifyContent="flex_start"
+                        android:layout_marginBottom="12dp"
+                        android:visibility="gone" />
+
+                    <!-- Tag Filter Grid -->
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/rvTagFilter"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:nestedScrollingEnabled="false" />
+
+                </LinearLayout>
+
+                </LinearLayout>
+
+            </ScrollView>
+
+        </LinearLayout>
+
+    </com.google.android.material.card.MaterialCardView>
+
     <!-- Collapsible Add Task Section with improved styling -->
     <androidx.cardview.widget.CardView
         android:id="@+id/card_add_task"
@@ -71,13 +274,20 @@
             </LinearLayout>
 
             <!-- Expandable content with improved spacing -->
-            <LinearLayout
-                android:id="@+id/layout_add_task_content"
+            <ScrollView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="20dp"
-                android:visibility="gone">
+                android:fillViewport="true"
+                android:scrollbars="vertical"
+                android:fadeScrollbars="false">
+
+                <LinearLayout
+                    android:id="@+id/layout_add_task_content"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="20dp"
+                    android:visibility="gone">
 
                 <com.google.android.material.textfield.TextInputLayout
                     android:layout_width="match_parent"
@@ -161,6 +371,60 @@
 
                 </com.google.android.material.textfield.TextInputLayout>
 
+                <!-- Tags Section -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Tags"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/text_primary"
+                    android:layout_marginBottom="8dp"
+                    android:drawableStart="@android:drawable/ic_menu_agenda"
+                    android:drawablePadding="8dp"
+                    android:gravity="center_vertical" />
+
+                <!-- Selected Tags Container -->
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="20dp"
+                    app:cardCornerRadius="12dp"
+                    app:cardBackgroundColor="?android:attr/colorBackground"
+                    app:strokeColor="@color/primary_blue"
+                    app:strokeWidth="1dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="12dp">
+
+                        <!-- Selected Tags -->
+                        <com.google.android.flexbox.FlexboxLayout
+                            android:id="@+id/flexboxMainSelectedTags"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="8dp"
+                            app:flexWrap="wrap"
+                            app:alignItems="flex_start"
+                            app:justifyContent="flex_start" />
+
+                        <!-- Add Tags Button -->
+                        <Button
+                            android:id="@+id/btnMainSelectTags"
+                            android:layout_width="wrap_content"
+                            android:layout_height="36dp"
+                            android:text="+ Chọn Tags"
+                            android:textSize="14sp"
+                            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                            app:strokeColor="@color/primary_blue"
+                            app:cornerRadius="18dp" />
+
+                    </LinearLayout>
+
+                </com.google.android.material.card.MaterialCardView>
+
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/button_add_task"
                     android:layout_width="match_parent"
@@ -174,13 +438,16 @@
                     app:cornerRadius="24dp"
                     android:elevation="4dp" />
 
-            </LinearLayout>
+                </LinearLayout>
+
+            </ScrollView>
 
         </LinearLayout>
 
     </androidx.cardview.widget.CardView>
 
     <!-- Filter Section with improved styling -->
+    <!-- Old Topic Filter Section - Hidden (Moved to Unified Filter) -->
     <androidx.cardview.widget.CardView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -188,7 +455,8 @@
         android:layout_marginBottom="16dp"
         app:cardCornerRadius="16dp"
         app:cardElevation="6dp"
-        app:cardBackgroundColor="@color/card_background">
+        app:cardBackgroundColor="@color/card_background"
+        android:visibility="gone">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -213,8 +481,9 @@
                 android:layout_width="wrap_content"
                 android:layout_height="48dp"
                 android:text="CLEAR"
-                android:textSize="12sp"
+                android:textSize="14sp"
                 android:textStyle="bold"
+                android:minWidth="80dp"
                 style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                 app:strokeColor="@color/primary_blue"
                 app:cornerRadius="12dp"
@@ -303,22 +572,31 @@
             </LinearLayout>
 
             <!-- Content có thể ẩn/hiện -->
-            <LinearLayout
-                android:id="@+id/layout_tasks_due_next_week_content"
+            <ScrollView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:paddingHorizontal="16dp"
-                android:paddingBottom="16dp">
+                android:fillViewport="true"
+                android:scrollbars="vertical"
+                android:fadeScrollbars="false">
 
-                <androidx.recyclerview.widget.RecyclerView
-                    android:id="@+id/recycler_tasks_due_next_week"
+                <LinearLayout
+                    android:id="@+id/layout_tasks_due_next_week_content"
                     android:layout_width="match_parent"
-                    android:layout_height="200dp"
-                    android:nestedScrollingEnabled="true"
-                    android:scrollbars="vertical" />
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:paddingHorizontal="16dp"
+                    android:paddingBottom="16dp">
 
-            </LinearLayout>
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/recycler_tasks_due_next_week"
+                        android:layout_width="match_parent"
+                        android:layout_height="200dp"
+                        android:nestedScrollingEnabled="true"
+                        android:scrollbars="vertical" />
+
+                </LinearLayout>
+
+            </ScrollView>
 
         </LinearLayout>
 

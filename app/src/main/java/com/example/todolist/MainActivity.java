@@ -25,6 +25,15 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+import androidx.recyclerview.widget.GridLayoutManager;
+import com.google.android.flexbox.FlexboxLayout;
+import com.google.android.flexbox.FlexDirection;
+import com.google.android.flexbox.FlexWrap;
+import com.google.android.flexbox.FlexboxLayoutManager;
+import android.graphics.Color;
+import android.widget.TextView;
+import java.util.Arrays;
+import java.util.HashMap;
 
 import java.sql.Time;
 import java.time.LocalDateTime;
@@ -35,12 +44,41 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
     private static final int PAGE_SIZE = 5; // 5 tasks per page
 
     private DatabaseHelper databaseHelper;
+    private TagManager tagManager;
     private TaskAdapter taskAdapter;
     private RecyclerView recyclerView;
     private EditText editTitle, editDescription, editTopic, editDeadline;
-    private Button buttonAddTask, buttonClearFilter;
+    private Button buttonAddTask, buttonClearFilter, btnMainSelectTags;
     private Spinner spinnerTopicFilter;
+    private FlexboxLayout flexboxMainSelectedTags;
     private List<Task> allTasks;
+    private List<Tag> selectedMainTags = new ArrayList<>();
+
+    // Tag filtering
+    private RecyclerView rvTagFilter;
+    private TagFilterAdapter tagFilterAdapter;
+    private Button btnClearFilter;
+    private FlexboxLayout flexboxFilterTags;
+    private List<Tag> currentFilterTags = new ArrayList<>();
+    private List<Task> originalAllTasks = new ArrayList<>(); // Keep original list
+    
+    // Unified filter toggle and components
+    private LinearLayout layoutTagFilterHeader, layoutTagFilterContent;
+    private ImageView iconTagFilterToggle;
+    private TextView tvTagFilterHint;
+    private boolean isTagFilterExpanded = false; // Default collapsed to save space
+    
+    // Filter type selector
+    private Button btnFilterByTopic, btnFilterByTag;
+    private LinearLayout layoutTopicFilter, layoutTagFilter;
+    private Spinner spinnerUnifiedTopicFilter;
+    private Button btnClearTopicFilter;
+    private FilterType currentFilterType = FilterType.TOPIC; // Default to topic
+    
+    // Filter types enum
+    public enum FilterType {
+        TOPIC, TAG
+    }
 
     // UI elements for collapsible add task section
     private LinearLayout layoutAddTaskHeader, layoutAddTaskContent;
@@ -82,12 +120,18 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
 
         reminderService = new ReminderService();
         reminderAlarmManager = new ReminderAlarmManager(this);
+        tagManager = TagManager.getInstance(this);
 
         initViews();
         setupDatabase();
         setupRecyclerView();
         setupClickListeners();
         setupAddTaskToggle();
+        setupTagFilter();
+        
+        // Initialize filter type UI after all components are set up
+        switchToFilterType(currentFilterType);
+        
         loadInitialTasks();
         
         // Setup test reminder - long press on toolbar
@@ -160,6 +204,8 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
         recyclerTasksDueNextWeek.setNestedScrollingEnabled(true);
         
         recyclerTasksDueNextWeek.setAdapter(tasksDueNextWeekAdapter);
+        
+        // Load initial tasks due next week (adapter is now initialized)
         loadTasksDueNextWeek();
         
         // Update widget when app starts
@@ -179,6 +225,27 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
         buttonAddTask = findViewById(R.id.button_add_task);
         buttonClearFilter = findViewById(R.id.button_clear_filter);
         spinnerTopicFilter = findViewById(R.id.spinner_topic_filter);
+        btnMainSelectTags = findViewById(R.id.btnMainSelectTags);
+        flexboxMainSelectedTags = findViewById(R.id.flexboxMainSelectedTags);
+
+        // Tag filter views
+        rvTagFilter = findViewById(R.id.rvTagFilter);
+        btnClearFilter = findViewById(R.id.btnClearFilter);
+        flexboxFilterTags = findViewById(R.id.flexboxFilterTags);
+        
+        // Unified filter toggle views
+        layoutTagFilterHeader = findViewById(R.id.layout_tag_filter_header);
+        layoutTagFilterContent = findViewById(R.id.layout_tag_filter_content);
+        iconTagFilterToggle = findViewById(R.id.icon_tag_filter_toggle);
+        tvTagFilterHint = findViewById(R.id.tvTagFilterHint);
+        
+        // Filter type selector views
+        btnFilterByTopic = findViewById(R.id.btnFilterByTopic);
+        btnFilterByTag = findViewById(R.id.btnFilterByTag);
+        layoutTopicFilter = findViewById(R.id.layoutTopicFilter);
+        layoutTagFilter = findViewById(R.id.layoutTagFilter);
+        spinnerUnifiedTopicFilter = findViewById(R.id.spinnerUnifiedTopicFilter);
+        btnClearTopicFilter = findViewById(R.id.btnClearTopicFilter);
 
         // New UI elements
         layoutAddTaskHeader = findViewById(R.id.layout_add_task_header);
@@ -235,6 +302,7 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
     private void setupClickListeners() {
         buttonAddTask.setOnClickListener(v -> addTask());
         buttonClearFilter.setOnClickListener(v -> clearFilter());
+        btnMainSelectTags.setOnClickListener(v -> showMainTagSelectionDialog());
 
         // Add date/time picker for deadline field
         editDeadline.setOnClickListener(v -> showDateTimePicker());
@@ -247,6 +315,24 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
 
         // Setup Tasks Due Next Week toggle
         layoutTasksDueNextWeekHeader.setOnClickListener(v -> toggleTasksDueNextWeekSection());
+        
+        // Setup Unified Filter toggle
+        layoutTagFilterHeader.setOnClickListener(v -> toggleTagFilterSection());
+        
+        // Setup Filter Type Selector
+        btnFilterByTopic.setOnClickListener(v -> switchToFilterType(FilterType.TOPIC));
+        btnFilterByTag.setOnClickListener(v -> switchToFilterType(FilterType.TAG));
+        btnClearTopicFilter.setOnClickListener(v -> clearTopicFilter());
+        
+        // Set initial icon state and hint text
+        if (isTagFilterExpanded) {
+            iconTagFilterToggle.setRotation(180f);
+            String currentTypeText = (currentFilterType == FilterType.TOPIC) ? "chủ đề" : "tag";
+            tvTagFilterHint.setText("Đang lọc theo " + currentTypeText);
+        } else {
+            iconTagFilterToggle.setRotation(0f);
+            tvTagFilterHint.setText("Nhấn để mở rộng");
+        }
     }
 
     private void toggleAddTaskSection() {
@@ -274,6 +360,102 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
         }
     }
 
+    private void toggleTagFilterSection() {
+        isTagFilterExpanded = !isTagFilterExpanded;
+
+        // Animate icon rotation
+        float targetRotation = isTagFilterExpanded ? 180f : 0f;
+        iconTagFilterToggle.animate()
+                .rotation(targetRotation)
+                .setDuration(200)
+                .start();
+
+        // Update hint text based on current state and filter type
+        if (isTagFilterExpanded) {
+            String currentTypeText = (currentFilterType == FilterType.TOPIC) ? "chủ đề" : "tag";
+            tvTagFilterHint.setText("Đang lọc theo " + currentTypeText);
+        } else {
+            tvTagFilterHint.setText("Nhấn để mở rộng");
+        }
+
+        // Show/hide content with smooth transition
+        if (isTagFilterExpanded) {
+            layoutTagFilterContent.setVisibility(View.VISIBLE);
+            layoutTagFilterContent.setAlpha(0f);
+            layoutTagFilterContent.animate()
+                    .alpha(1f)
+                    .setDuration(200)
+                    .start();
+        } else {
+            layoutTagFilterContent.animate()
+                    .alpha(0f)
+                    .setDuration(200)
+                    .withEndAction(() -> layoutTagFilterContent.setVisibility(View.GONE))
+                    .start();
+        }
+    }
+
+    private void switchToFilterType(FilterType filterType) {
+        currentFilterType = filterType;
+        
+        // Update button states (only if buttons are initialized)
+        if (btnFilterByTopic != null) {
+            btnFilterByTopic.setSelected(filterType == FilterType.TOPIC);
+        }
+        if (btnFilterByTag != null) {
+            btnFilterByTag.setSelected(filterType == FilterType.TAG);
+        }
+        
+        // Update button text colors (only if buttons are initialized)
+        if (btnFilterByTopic != null && btnFilterByTag != null) {
+            if (filterType == FilterType.TOPIC) {
+                btnFilterByTopic.setTextColor(getResources().getColor(android.R.color.white, null));
+                btnFilterByTag.setTextColor(getThemeTextColor(android.R.attr.textColorSecondary));
+            } else {
+                btnFilterByTopic.setTextColor(getThemeTextColor(android.R.attr.textColorSecondary));
+                btnFilterByTag.setTextColor(getResources().getColor(android.R.color.white, null));
+            }
+        }
+        
+        // Show/hide corresponding filter sections (only if layouts are initialized)
+        if (layoutTopicFilter != null) {
+            layoutTopicFilter.setVisibility(filterType == FilterType.TOPIC ? View.VISIBLE : View.GONE);
+        }
+        if (layoutTagFilter != null) {
+            layoutTagFilter.setVisibility(filterType == FilterType.TAG ? View.VISIBLE : View.GONE);
+        }
+        
+        // Update hint text based on filter type
+        if (isTagFilterExpanded && tvTagFilterHint != null) {
+            String currentTypeText = (filterType == FilterType.TOPIC) ? "chủ đề" : "tag";
+            tvTagFilterHint.setText("Đang lọc theo " + currentTypeText);
+        }
+        
+        // Clear existing filters when switching type (only if components are initialized)
+        if (filterType == FilterType.TOPIC) {
+            clearTagFilter();
+        } else {
+            clearTopicFilter();
+        }
+    }
+
+    private void clearTopicFilter() {
+        if (spinnerUnifiedTopicFilter != null && spinnerUnifiedTopicFilter.getAdapter() != null) {
+            spinnerUnifiedTopicFilter.setSelection(0); // Select "All Topics"
+            currentFilterTopic = null;
+            if (initialLoadComplete) { // Only apply filter if app is fully loaded
+                applyFilterImmediately();
+            }
+        }
+    }
+
+    private int getThemeTextColor(int attrRes) {
+        android.content.res.TypedArray typedArray = obtainStyledAttributes(new int[]{attrRes});
+        int color = typedArray.getColor(0, android.graphics.Color.BLACK);
+        typedArray.recycle();
+        return color;
+    }
+
     private void addTask() {
         String title = editTitle.getText().toString().trim();
         String description = editDescription.getText().toString().trim();
@@ -291,6 +473,9 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
         if (!deadline.isEmpty()) {
             task.setDeadline(deadline);
         }
+
+        // Set tags if any selected
+        task.setTags(new ArrayList<>(selectedMainTags));
 
         long id = databaseHelper.addTask(task);
 
@@ -314,7 +499,11 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
             applyFilterImmediately();
             
             setupTopicFilter();
-            loadTasksDueNextWeek(); // Refresh the due next week list
+            
+            // Refresh the due next week list (with null check)
+            if (tasksDueNextWeekAdapter != null) {
+                loadTasksDueNextWeek();
+            }
             
             // Update widgets
             TaskWidgetProvider.updateAllWidgets(this);
@@ -328,6 +517,336 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
         editDescription.setText("");
         editTopic.setText("");
         editDeadline.setText("");
+        selectedMainTags.clear();
+        updateMainSelectedTagsDisplay();
+    }
+
+    private void showMainTagSelectionDialog() {
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_tag_selector, null);
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setView(dialogView);
+        AlertDialog dialog = builder.create();
+
+        EditText etTagSearch = dialogView.findViewById(R.id.etTagSearch);
+        Button btnCreateNewTag = dialogView.findViewById(R.id.btnCreateNewTag);
+        RecyclerView rvTagsSelector = dialogView.findViewById(R.id.rvTagsSelector);
+        Button btnCancelTagSelection = dialogView.findViewById(R.id.btnCancelTagSelection);
+        Button btnConfirmTagSelection = dialogView.findViewById(R.id.btnConfirmTagSelection);
+
+        // Setup RecyclerView
+        TagSelectionAdapter adapter = new TagSelectionAdapter(new ArrayList<>(selectedMainTags));
+        rvTagsSelector.setLayoutManager(new LinearLayoutManager(this));
+        rvTagsSelector.setAdapter(adapter);
+
+        // Load all tags
+        List<Tag> allTags = tagManager.getAllTags();
+        adapter.updateTags(allTags);
+
+        // Search functionality
+        etTagSearch.addTextChangedListener(new android.text.TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                String query = s.toString().trim();
+                List<Tag> filteredTags = tagManager.searchTagsByName(query);
+                adapter.updateTags(filteredTags);
+
+                // Show/hide create new tag button
+                boolean canCreateNew = !query.isEmpty() && tagManager.isTagNameAvailable(query);
+                btnCreateNewTag.setVisibility(canCreateNew ? View.VISIBLE : View.GONE);
+                btnCreateNewTag.setText("Tạo tag: \"" + query + "\"");
+            }
+
+            @Override
+            public void afterTextChanged(android.text.Editable s) {}
+        });
+
+        // Create new tag
+        btnCreateNewTag.setOnClickListener(v -> {
+            String tagName = etTagSearch.getText().toString().trim();
+            if (!tagName.isEmpty()) {
+                showCreateTagDialog(tagName, (newTag) -> {
+                    List<Tag> updatedTags = tagManager.getAllTags();
+                    adapter.updateTags(updatedTags);
+                    adapter.setTagSelected(newTag, true);
+                    btnCreateNewTag.setVisibility(View.GONE);
+                    etTagSearch.setText("");
+                });
+            }
+        });
+
+        // Dialog buttons
+        btnCancelTagSelection.setOnClickListener(v -> dialog.dismiss());
+        
+        btnConfirmTagSelection.setOnClickListener(v -> {
+            selectedMainTags = adapter.getSelectedTags();
+            updateMainSelectedTagsDisplay();
+            dialog.dismiss();
+        });
+
+        dialog.show();
+    }
+
+    private void updateMainSelectedTagsDisplay() {
+        flexboxMainSelectedTags.removeAllViews();
+
+        for (Tag tag : selectedMainTags) {
+            View tagChip = getLayoutInflater().inflate(R.layout.item_tag_chip, flexboxMainSelectedTags, false);
+            
+            View colorDot = tagChip.findViewById(R.id.viewTagColorDot);
+            TextView tagName = tagChip.findViewById(R.id.tvTagChipName);
+            View removeButton = tagChip.findViewById(R.id.ivRemoveTag);
+
+            try {
+                colorDot.setBackgroundColor(Color.parseColor(tag.getColor()));
+            } catch (Exception e) {
+                colorDot.setBackgroundColor(Color.GRAY);
+            }
+            
+            tagName.setText(tag.getName());
+            removeButton.setVisibility(View.VISIBLE);
+            
+            removeButton.setOnClickListener(v -> {
+                selectedMainTags.remove(tag);
+                updateMainSelectedTagsDisplay();
+            });
+
+            flexboxMainSelectedTags.addView(tagChip);
+        }
+    }
+
+    public interface OnTagCreatedListener {
+        void onTagCreated(Tag tag);
+    }
+
+    private void showCreateTagDialog(String initialName, OnTagCreatedListener listener) {
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_create_tag, null);
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setView(dialogView);
+        AlertDialog dialog = builder.create();
+
+        EditText etNewTagName = dialogView.findViewById(R.id.etNewTagName);
+        RecyclerView rvColorPicker = dialogView.findViewById(R.id.rvColorPicker);
+        View viewPreviewColor = dialogView.findViewById(R.id.viewPreviewColor);
+        TextView tvPreviewName = dialogView.findViewById(R.id.tvPreviewName);
+        Button btnCancelCreateTag = dialogView.findViewById(R.id.btnCancelCreateTag);
+        Button btnConfirmCreateTag = dialogView.findViewById(R.id.btnConfirmCreateTag);
+
+        // Set initial name
+        etNewTagName.setText(initialName);
+        tvPreviewName.setText(initialName.isEmpty() ? "Tag Name" : initialName);
+        
+        // Set initial button state
+        btnConfirmCreateTag.setEnabled(!initialName.isEmpty() && tagManager.isTagNameAvailable(initialName));
+
+        // Setup color picker
+        List<String> colors = Arrays.asList(tagManager.getAllColors());
+        ColorPickerAdapter colorAdapter = new ColorPickerAdapter(colors);
+        rvColorPicker.setLayoutManager(new GridLayoutManager(this, 5)); // 5 columns
+        rvColorPicker.setAdapter(colorAdapter);
+
+        // Set initial preview color
+        String initialColor = colorAdapter.getSelectedColor();
+        try {
+            viewPreviewColor.setBackgroundColor(Color.parseColor(initialColor));
+        } catch (Exception e) {
+            viewPreviewColor.setBackgroundColor(Color.GRAY);
+        }
+
+        // Color selection listener
+        colorAdapter.setOnColorSelectedListener((color, position) -> {
+            try {
+                viewPreviewColor.setBackgroundColor(Color.parseColor(color));
+            } catch (Exception e) {
+                viewPreviewColor.setBackgroundColor(Color.GRAY);
+            }
+        });
+
+        // Name change listener
+        etNewTagName.addTextChangedListener(new android.text.TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                String name = s.toString().trim();
+                tvPreviewName.setText(name.isEmpty() ? "Tag Name" : name);
+                btnConfirmCreateTag.setEnabled(!name.isEmpty() && tagManager.isTagNameAvailable(name));
+            }
+
+            @Override
+            public void afterTextChanged(android.text.Editable s) {}
+        });
+
+        // Dialog buttons
+        btnCancelCreateTag.setOnClickListener(v -> dialog.dismiss());
+        
+        btnConfirmCreateTag.setOnClickListener(v -> {
+            String tagName = etNewTagName.getText().toString().trim();
+            String selectedColor = colorAdapter.getSelectedColor();
+            
+            if (!tagName.isEmpty() && tagManager.isTagNameAvailable(tagName)) {
+                Tag newTag = tagManager.createTag(tagName, selectedColor);
+                if (listener != null) {
+                    listener.onTagCreated(newTag);
+                }
+                dialog.dismiss();
+            } else {
+                Toast.makeText(this, "Tên tag đã tồn tại hoặc không hợp lệ", Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        dialog.show();
+    }
+
+    private void setupTagFilter() {
+        // Setup FlexboxLayout for tag filter (only if initialized)
+        if (flexboxFilterTags != null) {
+            FlexboxLayout.LayoutParams filterLayoutParams = new FlexboxLayout.LayoutParams(
+                    FlexboxLayout.LayoutParams.WRAP_CONTENT,
+                    FlexboxLayout.LayoutParams.WRAP_CONTENT
+            );
+            flexboxFilterTags.setFlexDirection(FlexDirection.ROW);
+            flexboxFilterTags.setFlexWrap(FlexWrap.WRAP);
+        }
+
+        // Setup TagFilterAdapter (only if RecyclerView is initialized)
+        if (rvTagFilter != null) {
+            tagFilterAdapter = new TagFilterAdapter();
+            FlexboxLayoutManager layoutManager = new FlexboxLayoutManager(this);
+            layoutManager.setFlexDirection(FlexDirection.ROW);
+            layoutManager.setFlexWrap(FlexWrap.WRAP);
+            rvTagFilter.setLayoutManager(layoutManager);
+            rvTagFilter.setAdapter(tagFilterAdapter);
+        }
+
+        // Setup filter listener (only if adapter is initialized)
+        if (tagFilterAdapter != null) {
+            tagFilterAdapter.setOnTagFilterListener(selectedTags -> {
+                // Only process if currently in TAG filter mode
+                if (currentFilterType == FilterType.TAG) {
+                    currentFilterTags = new ArrayList<>(selectedTags);
+                    updateFilteredTasks();
+                    updateFilterDisplay();
+                }
+            });
+        }
+
+        // Setup clear filter button (for tags) (only if button is initialized)
+        if (btnClearFilter != null) {
+            btnClearFilter.setOnClickListener(v -> clearTagFilter());
+        }
+
+        // Load initial tag data
+        loadTagsForFilter();
+    }
+
+    private void loadTagsForFilter() {
+        // Only load if components are initialized
+        if (tagFilterAdapter == null || originalAllTasks == null || tagManager == null) {
+            return;
+        }
+        
+        List<Tag> allTags = tagManager.getAllTags();
+        List<TagFilterAdapter.TagWithCount> tagsWithCount = new ArrayList<>();
+
+        // Count tasks for each tag
+        for (Tag tag : allTags) {
+            int taskCount = 0;
+            for (Task task : originalAllTasks) {
+                if (task.hasTag(tag)) {
+                    taskCount++;
+                }
+            }
+            if (taskCount > 0) { // Only show tags that have tasks
+                tagsWithCount.add(new TagFilterAdapter.TagWithCount(tag, taskCount));
+            }
+        }
+
+        tagFilterAdapter.updateTagsWithCount(tagsWithCount);
+    }
+
+    private void updateFilteredTasks() {
+        // Only apply tag filtering when in TAG mode and components are initialized
+        if (currentFilterType == FilterType.TAG && taskAdapter != null && allTasks != null && originalAllTasks != null) {
+            if (currentFilterTags.isEmpty()) {
+                // No tag filter - show all tasks
+                allTasks = new ArrayList<>(originalAllTasks);
+            } else {
+                // Filter tasks that contain ANY of the selected tags
+                allTasks = new ArrayList<>();
+                for (Task task : originalAllTasks) {
+                    boolean hasMatchingTag = false;
+                    for (Tag filterTag : currentFilterTags) {
+                        if (task.hasTag(filterTag)) {
+                            hasMatchingTag = true;
+                            break;
+                        }
+                    }
+                    if (hasMatchingTag) {
+                        allTasks.add(task);
+                    }
+                }
+            }
+
+            // Update the adapter
+            taskAdapter.updateTasks(allTasks);
+        }
+        // Topic filtering is handled by applyFilterImmediately() and filterTasksByTopic()
+    }
+
+    private void updateFilterDisplay() {
+        // Only show tag-related UI when in TAG filter mode and components are initialized
+        if (currentFilterType == FilterType.TAG && !currentFilterTags.isEmpty() && 
+            btnClearFilter != null && flexboxFilterTags != null) {
+            btnClearFilter.setVisibility(View.VISIBLE);
+            flexboxFilterTags.setVisibility(View.VISIBLE);
+            displaySelectedFilterTags();
+        } else if (btnClearFilter != null && flexboxFilterTags != null) {
+            btnClearFilter.setVisibility(View.GONE);
+            flexboxFilterTags.setVisibility(View.GONE);
+        }
+    }
+
+    private void displaySelectedFilterTags() {
+        flexboxFilterTags.removeAllViews();
+
+        for (Tag tag : currentFilterTags) {
+            View tagChip = getLayoutInflater().inflate(R.layout.item_tag_chip, flexboxFilterTags, false);
+            
+            View colorDot = tagChip.findViewById(R.id.viewTagColorDot);
+            TextView tagName = tagChip.findViewById(R.id.tvTagChipName);
+            View removeButton = tagChip.findViewById(R.id.ivRemoveTag);
+
+            try {
+                colorDot.setBackgroundColor(Color.parseColor(tag.getColor()));
+            } catch (Exception e) {
+                colorDot.setBackgroundColor(Color.GRAY);
+            }
+            
+            tagName.setText(tag.getName());
+            removeButton.setVisibility(View.VISIBLE);
+            
+            removeButton.setOnClickListener(v -> {
+                currentFilterTags.remove(tag);
+                tagFilterAdapter.setSelectedTags(currentFilterTags);
+                updateFilteredTasks();
+                updateFilterDisplay();
+            });
+
+            flexboxFilterTags.addView(tagChip);
+        }
+    }
+
+    private void clearTagFilter() {
+        currentFilterTags.clear();
+        if (tagFilterAdapter != null) {
+            tagFilterAdapter.clearSelection();
+        }
+        updateFilteredTasks();
+        updateFilterDisplay();
     }
 
     private void loadInitialTasks() {
@@ -441,10 +960,26 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
             allTasks.addAll(filteredTasks);
             android.util.Log.d("MainActivity", "Added " + filteredTasks.size() + " new tasks");
             
+            // Update original tasks list for tag filtering (always get all tasks)
+            if (currentFilterTopic == null || "All Topics".equals(currentFilterTopic)) {
+                originalAllTasks = new ArrayList<>(allTasks);
+            } else {
+                // For topic filtering, still get all tasks for tag filter basis
+                originalAllTasks = databaseHelper.getAllTasks();
+            }
+            
             // Force adapter update
             taskAdapter.updateTasks(allTasks);
             taskAdapter.notifyDataSetChanged();
             android.util.Log.d("MainActivity", "Adapter updated and notified");
+            
+                    // Update tag filter data
+        loadTagsForFilter();
+        
+        // Refresh tasks due next week when main data changes (with null check)
+        if (tasksDueNextWeekAdapter != null) {
+            loadTasksDueNextWeek();
+        }
             
             // Hide loading
             taskAdapter.setLoading(false);
@@ -472,40 +1007,85 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
 
         ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, topics);
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        spinnerTopicFilter.setAdapter(adapter);
+        
+        // Setup both old spinner (hidden) and new unified spinner
+        if (spinnerTopicFilter != null) {
+            spinnerTopicFilter.setAdapter(adapter);
+            spinnerTopicFilter.setSelection(0, false);
+        }
+        
+        // Setup unified spinner
+        if (spinnerUnifiedTopicFilter != null) {
+            spinnerUnifiedTopicFilter.setAdapter(adapter);
+            spinnerUnifiedTopicFilter.setSelection(0, false);
+            
+            // Add listener for unified spinner
+            new android.os.Handler().postDelayed(() -> {
+                spinnerUnifiedTopicFilter.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
+                    @Override
+                    public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) {
+                        // Only process if currently showing topic filter
+                        if (currentFilterType != FilterType.TOPIC) {
+                            return;
+                        }
+                        
+                        String selectedTopic = (String) parent.getItemAtPosition(position);
+                        
+                        // Don't filter if initial load is not complete yet
+                        if (!initialLoadComplete) {
+                            android.util.Log.d("MainActivity", "Ignoring filter change - initial load not complete");
+                            return;
+                        }
+                        
+                        // Check if this is actually a different filter
+                        String newFilter = selectedTopic.equals("All Topics") ? null : selectedTopic;
+                        if ((currentFilterTopic == null && newFilter == null) || 
+                            (currentFilterTopic != null && currentFilterTopic.equals(newFilter))) {
+                            android.util.Log.d("MainActivity", "Filter unchanged - skipping");
+                            return;
+                        }
+                        
+                        android.util.Log.d("MainActivity", "Unified filter changed from '" + currentFilterTopic + "' to '" + selectedTopic + "'");
+                        filterTasksByTopic(selectedTopic);
+                    }
 
-        // Set selection to "All Topics" first without triggering listener
-        spinnerTopicFilter.setSelection(0, false);
+                    @Override
+                    public void onNothingSelected(android.widget.AdapterView<?> parent) {}
+                });
+            }, 100);
+        }
+        
+        // Keep old spinner logic for backward compatibility (but it's hidden)
+        if (spinnerTopicFilter != null) {
+            new android.os.Handler().postDelayed(() -> {
+                spinnerTopicFilter.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
+                    @Override
+                    public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) {
+                        String selectedTopic = (String) parent.getItemAtPosition(position);
+                        
+                        // Don't filter if initial load is not complete yet
+                        if (!initialLoadComplete) {
+                            android.util.Log.d("MainActivity", "Ignoring filter change - initial load not complete");
+                            return;
+                        }
+                        
+                        // Check if this is actually a different filter
+                        String newFilter = selectedTopic.equals("All Topics") ? null : selectedTopic;
+                        if ((currentFilterTopic == null && newFilter == null) || 
+                            (currentFilterTopic != null && currentFilterTopic.equals(newFilter))) {
+                            android.util.Log.d("MainActivity", "Filter unchanged - skipping");
+                            return;
+                        }
+                        
+                        android.util.Log.d("MainActivity", "Filter changed from '" + currentFilterTopic + "' to '" + selectedTopic + "'");
+                        filterTasksByTopic(selectedTopic);
+                    }
 
-        // Add listener after a delay to ensure initial load is stable
-        new android.os.Handler().postDelayed(() -> {
-            spinnerTopicFilter.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
-                @Override
-                public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) {
-                    String selectedTopic = (String) parent.getItemAtPosition(position);
-                    
-                                         // Don't filter if initial load is not complete yet
-                     if (!initialLoadComplete) {
-                         android.util.Log.d("MainActivity", "Ignoring filter change - initial load not complete");
-                         return;
-                     }
-                     
-                     // Check if this is actually a different filter
-                     String newFilter = selectedTopic.equals("All Topics") ? null : selectedTopic;
-                     if ((currentFilterTopic == null && newFilter == null) || 
-                         (currentFilterTopic != null && currentFilterTopic.equals(newFilter))) {
-                         android.util.Log.d("MainActivity", "Filter unchanged - skipping");
-                         return;
-                     }
-                     
-                     android.util.Log.d("MainActivity", "Filter changed from '" + currentFilterTopic + "' to '" + selectedTopic + "'");
-                     filterTasksByTopic(selectedTopic);
-                }
-
-                @Override
-                public void onNothingSelected(android.widget.AdapterView<?> parent) {}
-            });
-                 }, 100); // Reduced delay to 100ms for better responsiveness
+                    @Override
+                    public void onNothingSelected(android.widget.AdapterView<?> parent) {}
+                });
+            }, 100);
+        }
     }
 
     private void filterTasksByTopic(String topic) {
@@ -620,7 +1200,11 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
                     // Update widget immediately when task is deleted
                     TaskWidgetProvider.updateAllWidgets(this);
                         setupTopicFilter(); // Refresh topic filter
-                        loadTasksDueNextWeek(); // Refresh the due next week list
+                        
+                        // Refresh the due next week list (with null check)
+                        if (tasksDueNextWeekAdapter != null) {
+                            loadTasksDueNextWeek();
+                        }
 
                         // Update widget immediately after deleting task
                         TaskWidgetProvider.updateAllWidgets(this);
@@ -666,6 +1250,11 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
                     // Re-enable reminders if task is unmarked and has reminders enabled
                     reminderAlarmManager.setReminder(task);
                 }
+                
+                // Refresh tasks due next week section when task status changes
+                if (tasksDueNextWeekAdapter != null) {
+                    loadTasksDueNextWeek();
+                }
 
                 // Update widget immediately after status change
                 TaskWidgetProvider.updateAllWidgets(this);
@@ -702,7 +1291,11 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
             if (deletedTaskId != -1) {
                 taskAdapter.removeTask(deletedTaskId);
                 setupTopicFilter(); // Refresh topic filter
-                loadTasksDueNextWeek(); // Refresh the due next week list
+                
+                // Refresh the due next week list (with null check)
+                if (tasksDueNextWeekAdapter != null) {
+                    loadTasksDueNextWeek();
+                }
                 Toast.makeText(this, "Task deleted successfully", Toast.LENGTH_SHORT).show();
 
                 // Update widget immediately after task deletion from detail activity
@@ -723,7 +1316,11 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
 
                 taskAdapter.updateTask(updatedTask);
                 setupTopicFilter(); // Refresh topic filter in case topic changed
-                loadTasksDueNextWeek(); // Refresh the due next week list
+                
+                // Refresh the due next week list (with null check)
+                if (tasksDueNextWeekAdapter != null) {
+                    loadTasksDueNextWeek();
+                }
 
                 // Update widget immediately after task update from detail activity
                 TaskWidgetProvider.updateAllWidgets(this);
@@ -900,7 +1497,12 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
         android.util.Log.d("MainActivity", "Tasks due later: " + dueLaterCount);
         android.util.Log.d("MainActivity", "Setting adapter with " + tasksDueNextWeek.size() + " tasks");
         
-        tasksDueNextWeekAdapter.updateTasks(tasksDueNextWeek);
+        // Add null check to prevent crash during initialization
+        if (tasksDueNextWeekAdapter != null) {
+            tasksDueNextWeekAdapter.updateTasks(tasksDueNextWeek);
+        } else {
+            android.util.Log.w("MainActivity", "tasksDueNextWeekAdapter is null, skipping update");
+        }
     }
 
     private boolean isWithinNextWeek(String deadline) {

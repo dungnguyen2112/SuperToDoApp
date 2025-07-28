@@ -9,7 +9,11 @@ import android.widget.Toast;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
+import androidx.cardview.widget.CardView;
 import com.google.android.material.button.MaterialButton;
+import com.google.android.flexbox.FlexboxLayout;
+import android.view.View;
+import android.graphics.Color;
 
 public class TaskDetailActivity extends AppCompatActivity {
     private static final int EDIT_TASK_REQUEST_CODE = 100;
@@ -22,6 +26,8 @@ public class TaskDetailActivity extends AppCompatActivity {
     private TextView textTitle, textDescription, textTopic, textDate, textStatus, textDeadline, textDeadlineStatus;
     private CheckBox checkboxCompleted;
     private MaterialButton buttonEdit, buttonDelete;
+    private CardView cardTags;
+    private FlexboxLayout flexboxTags;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -58,6 +64,8 @@ public class TaskDetailActivity extends AppCompatActivity {
         checkboxCompleted = findViewById(R.id.checkbox_completed);
         buttonEdit = findViewById(R.id.button_edit);
         buttonDelete = findViewById(R.id.button_delete);
+        cardTags = findViewById(R.id.card_tags);
+        flexboxTags = findViewById(R.id.flexboxTags);
     }
 
     private void loadTaskData() {
@@ -104,6 +112,9 @@ public class TaskDetailActivity extends AppCompatActivity {
 
         // Display deadline information
         updateDeadlineDisplay();
+
+        // Display tags
+        updateTagsDisplay();
 
         checkboxCompleted.setChecked(currentTask.isCompleted());
         updateStatusText();
@@ -178,6 +189,35 @@ public class TaskDetailActivity extends AppCompatActivity {
         } catch (java.text.ParseException e) {
             e.printStackTrace();
             textDeadlineStatus.setVisibility(android.view.View.GONE);
+        }
+    }
+
+    private void updateTagsDisplay() {
+        flexboxTags.removeAllViews();
+
+        if (currentTask.getTags() != null && !currentTask.getTags().isEmpty()) {
+            cardTags.setVisibility(View.VISIBLE);
+
+            for (Tag tag : currentTask.getTags()) {
+                View tagChip = getLayoutInflater().inflate(R.layout.item_tag_chip, flexboxTags, false);
+                
+                View colorDot = tagChip.findViewById(R.id.viewTagColorDot);
+                TextView tagName = tagChip.findViewById(R.id.tvTagChipName);
+                View removeButton = tagChip.findViewById(R.id.ivRemoveTag);
+
+                try {
+                    colorDot.setBackgroundColor(Color.parseColor(tag.getColor()));
+                } catch (Exception e) {
+                    colorDot.setBackgroundColor(Color.GRAY);
+                }
+                
+                tagName.setText(tag.getName());
+                removeButton.setVisibility(View.GONE); // Don't show remove button in detail view
+
+                flexboxTags.addView(tagChip);
+            }
+        } else {
+            cardTags.setVisibility(View.GONE);
         }
     }
 

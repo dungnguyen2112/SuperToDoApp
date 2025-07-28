@@ -102,6 +102,17 @@
                 android:layout_marginTop="4dp"
                 android:visibility="gone" />
 
+            <!-- Tags -->
+            <com.google.android.flexbox.FlexboxLayout
+                android:id="@+id/flexboxTaskTags"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                app:flexWrap="wrap"
+                app:alignItems="flex_start"
+                app:justifyContent="flex_start"
+                android:visibility="gone" />
+
         </LinearLayout>
 
         <ImageButton
